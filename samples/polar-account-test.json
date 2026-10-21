@@ -1,0 +1,17 @@
+{
+  "polarExport": {
+    "version": 1,
+    "kind": "accounts",
+    "accountGroup": "ACO TEst",
+    "exportedAt": "2026-10-06T05:52:05.432Z",
+    "accounts": [
+      {
+        "accountGroup": "ACO TEst",
+        "id": "476c3ddc-4d3c-4228-a95b-3209de39f17b",
+        "password": "123456",
+        "type": "Target",
+        "username": "Test@test.com"
+      }
+    ]
+  }
+}

@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src 'self'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PokeSluts AIO Studio</title>
+  <style>
+    :root, html[data-theme="aco"] {
+      --bg: #090a16; --bg2: #160f2e; --panel: #11132b; --panel2: #171a38; --line: #2c2a58;
+      --text: #f1f2fa; --text2: #d9dcf5; --muted: #8d91b3;
+      --pink: #ec4899; --purple: #7c3aed; --teal: #2dd4bf; --ga: #e0449f; --gb: #8b3ff0; --mid: #5b6cf0;
+      --inset: #0d0f24; --head: #b9a7f5; --sec: #4a3f86; --thbg: #1a1c3f; --hl: #ff8cc8; --soft: #8ff3de;
+      --brand1: #ff5bb0; --brand2: #d946e8; --brand3: #e8fff7;
+      --ok: #4ade80; --warn: #f0b429; --err: #ff6b81;
+      --sb-track: #000; --sb-thumb: #2a2a2a; --sb-hover: #3d3d3d; --hover: rgba(255, 255, 255, .06);
+      --sep: linear-gradient(90deg, #7c3aed 0%, #c026d3 50%, #ec4899 100%); /* ACO only: purple to pink separator */
+      --scheme: dark; --blur: 0px; --attach: scroll;
+      --page-bg: radial-gradient(1500px 800px at 85% 0%, #2a1458 0%, transparent 60%) no-repeat, linear-gradient(180deg, #090a16 0%, #160f2e 100%) no-repeat;
+      --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+    }
+    html[data-theme="royal"] {
+      --bg: #001a52; --bg2: #000d2b; --panel: #0a2560; --panel2: #061a4d; --line: #1a4f94;
+      --text: #f1f5f9; --text2: #dbeafe; --muted: #93b0e0;
+      --pink: #22d3ee; --purple: #3b82f6; --teal: #c4b5fd; --ga: #1646d6; --gb: #22d3ee; --mid: #3b82f6;
+      --inset: #00153d; --head: #a5f3fc; --sec: #2a5fb0; --thbg: #0a2a6e; --hl: #67e8f9; --soft: #a5f3fc;
+      --brand1: #67e8f9; --brand2: #3b82f6; --brand3: #e0f2fe;
+      --sb-track: #00102e; --sb-thumb: #12399c; --sb-hover: #1f56c0; --hover: rgba(255, 255, 255, .07);
+      --page-bg: linear-gradient(135deg, #001a52 0%, #000d2b 50%, #052b73 100%) no-repeat;
+    }
+    html[data-theme="zinc"] {
+      --bg: #09090b; --bg2: #09090b; --panel: #18181b; --panel2: #1c1c1f; --line: #3f3f46;
+      --text: #f4f4f5; --text2: #e4e4e7; --muted: #a1a1aa;
+      --pink: #e4e4e7; --purple: #71717a; --teal: #a1a1aa; --ga: #3f3f46; --gb: #52525b; --mid: #52525b;
+      --inset: #0c0c0e; --head: #a1a1aa; --sec: #52525b; --thbg: #1c1c1f; --hl: #e4e4e7; --soft: #e4e4e7;
+      --brand1: #f4f4f5; --brand2: #a1a1aa; --brand3: #fafafa;
+      --sb-track: #09090b; --sb-thumb: #3f3f46; --sb-hover: #52525b; --hover: rgba(255, 255, 255, .07);
+      --page-bg: #09090b;
+    }
+    html[data-theme="daylight"] {
+      --bg: #f1f5f9; --bg2: #f1f5f9; --panel: #ffffff; --panel2: #ffffff; --line: #cbd5e1;
+      --text: #0f172a; --text2: #334155; --muted: #475569;
+      --pink: #0369a1; --purple: #2563eb; --teal: #0369a1; --ga: #0ea5e9; --gb: #2563eb; --mid: #3b82f6;
+      --inset: #f8fafc; --head: #0369a1; --sec: #94a3b8; --thbg: #e2e8f0; --hl: #0369a1; --soft: #0369a1;
+      --brand1: #0ea5e9; --brand2: #2563eb; --brand3: #0f172a;
+      --ok: #15803d; --warn: #b45309; --err: #dc2626;
+      --sb-track: #e2e8f0; --sb-thumb: #94a3b8; --sb-hover: #64748b; --hover: rgba(15, 23, 42, .06);
+      --scheme: light; --page-bg: #f1f5f9;
+    }
+    html[data-theme="glassdark"] {
+      --bg: #0a0f1f; --bg2: #0a0f1f; --panel: rgba(255, 255, 255, .05); --panel2: rgba(255, 255, 255, .025); --line: rgba(255, 255, 255, .2);
+      --text: #f1f5f9; --text2: #e2e8f0; --muted: #a9b4c8;
+      --pink: #7dd3fc; --purple: #6366f1; --teal: #ddd6fe; --ga: #38bdf8; --gb: #6366f1; --mid: #818cf8;
+      --inset: rgba(255, 255, 255, .05); --head: #bae6fd; --sec: rgba(255, 255, 255, .3); --thbg: #1a2140; --hl: #7dd3fc; --soft: #bae6fd;
+      --brand1: #7dd3fc; --brand2: #c084fc; --brand3: #ffffff;
+      --sb-track: #0a0f1f; --sb-thumb: #2a3358; --sb-hover: #3b4777; --hover: rgba(255, 255, 255, .08);
+      --blur: 8px; --attach: fixed; --dialog-bg: #131a2e;
+      --page-bg: radial-gradient(55% 50% at 12% 8%, rgba(99, 102, 241, .55), transparent 62%), radial-gradient(45% 45% at 88% 18%, rgba(236, 72, 153, .38), transparent 62%), radial-gradient(45% 40% at 8% 88%, rgba(168, 85, 247, .34), transparent 62%), #0a0f1f;
+    }
+    html[data-theme="glasslight"] {
+      --bg: #eef3ff; --bg2: #eef3ff; --panel: rgba(255, 255, 255, .55); --panel2: rgba(255, 255, 255, .38); --line: rgba(120, 135, 190, .38);
+      --text: #0f172a; --text2: #1e293b; --muted: #475569;
+      --pink: #0369a1; --purple: #6366f1; --teal: #0284c7; --ga: #0ea5e9; --gb: #6366f1; --mid: #38bdf8;
+      --inset: rgba(255, 255, 255, .6); --head: #0369a1; --sec: rgba(100, 116, 170, .5); --thbg: #e3eaff; --hl: #0369a1; --soft: #0369a1;
+      --brand1: #0ea5e9; --brand2: #6366f1; --brand3: #0f172a;
+      --ok: #15803d; --warn: #b45309; --err: #dc2626;
+      --sb-track: #dfe7fb; --sb-thumb: #a5b4d8; --sb-hover: #8294c4; --hover: rgba(15, 23, 42, .06);
+      --scheme: light; --blur: 12px; --attach: fixed; --dialog-bg: #f4f7ff;
+      --page-bg: radial-gradient(55% 50% at 12% 8%, rgba(129, 140, 248, .45), transparent 62%), radial-gradient(45% 45% at 88% 18%, rgba(244, 114, 182, .35), transparent 62%), radial-gradient(55% 50% at 72% 92%, rgba(56, 189, 248, .45), transparent 62%), radial-gradient(45% 40% at 8% 88%, rgba(192, 132, 252, .30), transparent 62%), #eef3ff;
+    }
+    option, optgroup { background-color: var(--dialog-bg, var(--panel)); color: var(--text); }
+    /* Settings: theme picker */
+    .themeopt-unused { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; margin-bottom: 6px; text-align: left; background: var(--inset);
+      border: 1px solid var(--line); border-radius: 10px; box-shadow: none; color: var(--text); font-weight: 600; font-size: 13px; }
+    .themeopt:hover { border-color: var(--pink); filter: none; }
+    .themeopt.active { border-color: var(--pink); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pink) 45%, transparent); }
+    .themeopt .sw { width: 38px; height: 22px; border-radius: 7px; flex: none; border: 1px solid rgba(128, 128, 128, .45); }
+    .themeopt .tick { margin-left: auto; color: var(--pink); }
+  
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html {
+      color-scheme: var(--scheme); height: auto; min-height: 100%;
+      /* one continuous background that spans the whole page height (no fixed layers, nothing repeats) */
+      background: var(--page-bg); background-attachment: var(--attach); background-color: var(--bg2);
+    }
+    ::-webkit-scrollbar { width: 12px; height: 12px; background: var(--sb-track); }
+    ::-webkit-scrollbar-track { background: var(--sb-track); }
+    ::-webkit-scrollbar-corner { background: var(--sb-track); }
+    ::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: 6px; border: 2px solid var(--sb-track); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--sb-hover); }
+    ::-webkit-scrollbar-button { display: none; }
+    body { margin: 0; min-height: 100vh; color: var(--text); background: transparent; font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+    main { max-width: 1180px; margin: 0 auto; padding: 26px 32px 56px; }
+
+    header { display: flex; align-items: center; gap: 22px; padding-bottom: 22px; position: relative; }
+    header::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 3px;
+      background: var(--sep, linear-gradient(90deg, var(--purple), var(--mid) 55%, var(--teal)));
+      opacity: .85;
+    }
+    .logo {
+      width: 96px; height: 96px; border-radius: 50%; flex: none;
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--pink) 35%, transparent), 0 0 28px color-mix(in srgb, var(--purple) 45%, transparent);
+    }
+    .brand { flex: 1; }
+    .brand h1 { margin: 0; line-height: 1.05; font-weight: 800; letter-spacing: -.01em; }
+    .brand .poke {
+      display: block; font-size: 42px;
+      background: linear-gradient(90deg, var(--brand1), var(--brand2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand .aio {
+      display: block; font-size: 27px; margin-top: 2px;
+      background: linear-gradient(90deg, var(--brand3), var(--soft)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .subrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 28px 0 22px; }
+    .subrow .sub { margin: 0; flex: 1 1 360px; }
+    .launchers { display: flex; align-items: center; gap: 10px; }
+    header .launchers { flex: none; }
+    button.launch { background: transparent; border: 1px solid color-mix(in srgb, var(--teal) 55%, transparent); color: var(--soft); box-shadow: none; padding: 8px 16px; border-radius: 12px; }
+    button.launch:hover { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 8%, transparent); filter: none; }
+    button.launch.icon { padding: 8px 12px; line-height: 1; }
+    dialog { background: var(--dialog-bg, var(--panel)); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; width: min(560px, 92vw); }
+    dialog::backdrop { background: rgba(5, 5, 14, .7); }
+    dialog h2 { margin: 0 0 6px; font-size: 16px; }
+    .approw { padding: 12px 0; border-top: 1px solid var(--line); }
+    .approw .apath { color: var(--muted); font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; margin: 4px 0 8px; }
+    .approw .acts { display: flex; gap: 8px; }
+    .datehead { background: none !important; border: 0 !important; padding: 8px 2px 2px !important; margin: 4px 0 0 !important; color: var(--pink); font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: .08em; }
+    .datehead:first-child { margin-top: 0 !important; }
+    .group-date { color: var(--pink); font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: .08em; margin: 12px 2px 6px; }
+    .group-date:first-child { margin-top: 0; }
+    #recent { margin-top: 22px; }
+    #recent .head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    #recent .head h2 { margin: 0; }
+    .sub { color: var(--muted); margin: 28px 0 22px; }
+
+    /* buttons and fields */
+    button {
+      background: linear-gradient(90deg, var(--ga), var(--gb)); color: #fff; border: 0; border-radius: 10px;
+      padding: 9px 18px; font: inherit; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 18px color-mix(in srgb, var(--purple) 30%, transparent);
+    }
+    button:hover { filter: brightness(1.12); }
+    button:disabled { opacity: .5; cursor: default; filter: none; }
+    button.sec { background: transparent; border: 1px solid var(--sec); box-shadow: none; color: var(--text2); padding: 5px 12px; font-size: 12px; }
+    button.sec:hover { border-color: var(--pink); filter: none; }
+    button.warnbtn { background: var(--err); box-shadow: none; color: #fff; }
+    button.danger:hover { border-color: var(--err); color: var(--err); }
+    input, select, textarea {
+      background: var(--inset); border: 1px solid var(--line); color: var(--text);
+      border-radius: 10px; padding: 8px 11px; font: inherit; width: 100%;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--pink); }
+    input[type=checkbox] { width: auto; accent-color: var(--pink); }
+    textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+
+    /* converter view */
+    #drop {
+      border: 1.5px dashed var(--sec); border-radius: 16px; padding: 38px 20px; text-align: center;
+      background: linear-gradient(180deg, var(--panel), var(--panel2)); cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    #drop.over, #drop:hover, #drop:focus-visible {
+      outline: none; border-color: var(--pink); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pink) 30%, transparent), 0 0 26px color-mix(in srgb, var(--purple) 22%, transparent);
+    }
+    #drop strong { display: block; font-size: 16px; margin-bottom: 4px; }
+    #drop span { color: var(--muted); }
+    #file { display: none; }
+
+    #result { display: none; margin-top: 22px; }
+    .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .badge {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px;
+      font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text2);
+    }
+    .arrow { color: var(--pink); font-weight: 800; }
+    .grow { flex: 1; }
+    label.group { display: none; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    label.group input { text-transform: none; letter-spacing: 0; width: 200px; }
+
+    .table-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: auto; max-height: 320px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); white-space: nowrap; }
+    th {
+      position: sticky; top: 0; background: var(--thbg); color: var(--head); font-weight: 700; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .08em;
+    }
+    td { font-family: var(--mono); font-size: 13px; }
+    td:first-child { color: var(--hl); }
+    tr:last-child td { border-bottom: 0; }
+
+    .notes { margin: 16px 0 0; padding: 0; list-style: none; }
+    .notes li { color: var(--muted); padding: 6px 0 6px 18px; position: relative; font-size: 13px; }
+    .notes li::before { content: "•"; color: var(--pink); position: absolute; left: 4px; }
+    #msg, .msg { margin-top: 14px; min-height: 22px; font-family: var(--mono); font-size: 13px; }
+    .ok { color: var(--ok); } .err { color: var(--err); }
+
+    /* create view */
+    /* app body: icon dock on the left, workspace on the right */
+    .shell { display: flex; align-items: flex-start; gap: 22px; margin-top: 18px; }
+    .workspace { flex: 1; min-width: 0; }
+    .dock {
+      flex: none; width: 64px; padding: 10px 8px; position: sticky; top: 16px; z-index: 20;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+      background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px;
+      translate: -32px 0; /* nudged left by half its own width; the workspace does not move */
+    }
+    .dockdiv { width: 28px; height: 1px; flex: none; background: rgba(255, 255, 255, 0.08); }
+    .dockbtn {
+      position: relative; width: 44px; height: 44px; padding: 0; flex: none; display: grid; place-items: center;
+      background: transparent; color: var(--muted); border: 0; border-radius: 12px; box-shadow: none; cursor: pointer;
+      transition: background .15s, color .15s, box-shadow .15s;
+    }
+    .dockbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .dockbtn:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+    .dockbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+    .dockbtn.active { background: linear-gradient(135deg, var(--ga), var(--gb)); color: #fff; box-shadow: 0 4px 18px color-mix(in srgb, var(--pink) 35%, transparent), 0 0 22px color-mix(in srgb, var(--purple) 40%, transparent); }
+    .dockbtn::after { /* hover tooltip with the section name */
+      content: attr(data-tip); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px);
+      padding: 5px 10px; border-radius: 8px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s, transform .12s;
+      font-size: 12px; font-weight: 600; color: var(--text); background: var(--inset); border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+    }
+    .dockbtn:hover::after, .dockbtn:focus-visible::after { opacity: 1; transform: translateY(-50%); }
+
+    /* section title row: big title on the left, Vault categories beside it */
+    .titlerow { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px 26px; margin: 0 0 14px; min-height: 44px; }
+    .titlerow .tabs { grid-column: 2; justify-self: center; } /* Vault categories centered over the card */
+    @media (max-width: 900px) {
+      .titlerow { display: flex; flex-wrap: wrap; }
+      .titlerow .tabs { justify-self: auto; }
+    }
+    .titlerow h2.sectitle { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.15; color: #fff; text-transform: none; }
+    /* Vault: section rail on the left of one card */
+    .vaultcard { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 0; padding: 18px 20px 18px 14px; }
+    .vrail { display: flex; flex-direction: column; gap: 3px; border-right: 1px solid var(--line); padding: 0 14px 0 6px; margin-right: 22px; }
+    .vrail h3 { margin: 0 0 8px 10px; }
+    .vcat { display: flex; align-items: center; gap: 11px; width: 100%; padding: 10px 12px; text-align: left; background: transparent; color: var(--muted);
+      border: 0; border-radius: 10px; box-shadow: none; font-weight: 600; font-size: 14px; }
+    .vcat svg { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .vcat:hover { background: var(--hover); color: var(--text); filter: none; }
+    .vcat.active, .vcat.active:hover { background: color-mix(in srgb, var(--pink) 16%, transparent); color: var(--text); box-shadow: inset 2px 0 0 var(--pink); }
+    .vbody { min-width: 0; }
+    @media (max-width: 900px) {
+      .vaultcard { grid-template-columns: 1fr; padding: 16px; }
+      .vrail { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); margin: 0 0 14px; padding: 0 0 12px; }
+      .vrail h3 { display: none; }
+      .vcat { width: auto; }
+    }
+    /* Nothing in the app can be highlighted with the mouse (the fields you type in still can) */
+    html, body { -webkit-user-select: none; user-select: none; }
+    input, textarea, select { -webkit-user-select: text; user-select: text; }
+    .items li.sortable { cursor: grab; }
+    .items li.sortable:active { cursor: grabbing; }
+    .items li.sortable.dragging { opacity: .45; border-color: var(--pink); }
+    /* card status button: shows the state, and on hover what a click will change it to */
+    button.pillbtn { background: transparent; box-shadow: none; padding: 2px 9px; min-width: 112px; cursor: pointer; font-family: inherit; }
+    button.pillbtn:hover { filter: none; background: color-mix(in srgb, currentColor 12%, transparent); }
+    .pillbtn .next { display: none; }
+    .pillbtn:hover .now { display: none; }
+    .pillbtn:hover .next { display: inline; }
+    /* Builder: available cards in 3 columns, about 5 rows tall, scrolling after that */
+    #bCardList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; align-content: start; max-height: 286px; }
+    #bCardList > li { margin: 0; }
+    #bCardList > li:not(.pickrow) { grid-column: 1 / -1; }
+    #bCardList li.pickrow { flex-wrap: nowrap; cursor: pointer; padding: 8px 10px; }
+    #bCardList li.pickrow .main { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #bCardList li.pickrow.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 10%, var(--inset)); }
+    @media (max-width: 900px) { #bCardList { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .listhead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .listhead h2 { margin: 0 !important; }
+    .split .list .listhead { margin-bottom: 14px; }
+    .linkbtn.dangerlink { color: var(--err); }
+    .linkbtn:disabled { opacity: .35; cursor: default; text-decoration: none; }
+    select.sortsel { width: auto; padding: 3px 8px; font-size: 12px; border-radius: 8px; }
+    .gedit { flex: 0 1 260px; padding: 4px 9px; font-weight: 700; }
+    .items li.pickrow { cursor: pointer; }
+    .items li.pickrow.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 10%, var(--inset)); }
+    .mergehead { list-style: none; background: none !important; border: 0 !important; padding: 8px 2px 0 !important; color: var(--head); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    #mergeList { max-height: 300px; margin-top: 12px; }
+    .ctxmenu { position: fixed; z-index: 100; min-width: 180px; padding: 5px; background: var(--dialog-bg, var(--panel)); border: 1px solid var(--line);
+      border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+    .ctxmenu button { display: block; width: 100%; text-align: left; background: transparent; box-shadow: none; color: var(--text); border: 0; border-radius: 7px; padding: 7px 12px; font-size: 13px; font-weight: 600; }
+    .ctxmenu button:hover { background: var(--hover); filter: none; }
+    .ctxmenu button.danger { color: var(--err); }
+    .navrow { display: flex; justify-content: center; margin: 0 0 16px; }
+    .mainnav .tab { display: inline-flex; align-items: center; gap: 8px; }
+    .mainnav .tab svg { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    .tab.sm { padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+    .tab.sm svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    #tabVault .panel h2, #tabVault .split .list h2 { text-transform: uppercase; }
+    @media (max-width: 720px) {
+      .shell { flex-direction: column; gap: 14px; }
+      .dock { width: auto; flex-direction: row; position: static; align-self: center; padding: 8px 10px; translate: none; margin-top: 0 !important; }
+      .dockdiv { width: 1px; height: 28px; }
+      .dockbtn::after { left: 50%; top: calc(100% + 10px); transform: translateX(-50%); }
+      .dockbtn:hover::after, .dockbtn:focus-visible::after { transform: translateX(-50%); }
+    }
+    .tabs {
+      display: inline-flex; gap: 4px; padding: 4px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    }
+    .tab { background: transparent; box-shadow: none; color: var(--muted); padding: 8px 22px; border-radius: 9px; }
+    .tab.active { background: linear-gradient(90deg, var(--ga), var(--gb)); color: #fff; box-shadow: 0 4px 16px color-mix(in srgb, var(--purple) 30%, transparent); }
+    .note { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 18px; align-items: start; }
+    .panel {
+      -webkit-backdrop-filter: blur(var(--blur)); backdrop-filter: blur(var(--blur));
+      background: linear-gradient(180deg, var(--panel), var(--panel2)); border: 1px solid var(--line);
+      border-radius: 16px; padding: 18px 20px; margin-bottom: 18px;
+    }
+    .cols .panel { margin-bottom: 0; }
+    .panel h2, .panel h3 {
+      margin: 0 0 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--head);
+    }
+    .panel h3 { margin-top: 18px; }
+    .count { color: var(--pink); font-family: var(--mono); letter-spacing: 0; margin-left: 6px; }
+    .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .f { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .f input, .f select { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 14px; color: var(--text); }
+    .f.wide { grid-column: 1 / -1; }
+    .chk { display: flex; align-items: center; gap: 8px; margin: 6px 0; color: var(--text2); }
+    .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+    .items { list-style: none; margin: 0; padding: 0; max-height: 460px; overflow: auto; padding-right: 2px; }
+    .panel > .items { margin-top: 14px; }
+    .items li {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 9px 12px; margin-bottom: 6px;
+      background: var(--inset); border: 1px solid var(--line); border-radius: 10px; font-size: 13px;
+    }
+    .items li .main { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+    .items li .acts { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+    .items li .main b { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+    .items li button { white-space: nowrap; }
+    .items li .meta { color: var(--muted); font-size: 12px; }
+    .pill { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+    .pill.free { color: var(--ok); border-color: rgba(74, 222, 128, .4); }
+    .pill.used { color: var(--warn); border-color: rgba(240, 180, 41, .45); }
+    details.bulk { margin-top: 14px; }
+    details.bulk summary { cursor: pointer; color: var(--head); font-weight: 600; margin-bottom: 8px; }
+    details.bulk .f { margin: 10px 0; }
+    .linkbtn { background: none; border: 0; box-shadow: none; padding: 0; color: var(--pink); font-weight: 600; font-size: 12px; cursor: pointer; text-decoration: underline; }
+    .pickhead { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+    .pickhead h3 { margin: 0; }
+    #bGenerate { margin-top: 12px; padding: 11px 26px; }
+
+    /* vault: saved items on the left, add form on the right */
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 30px; align-items: start; }
+    .split .list h2 { margin-bottom: 14px; }
+    .split .form { border-left: 1px solid var(--line); padding-left: 28px; }
+    .split .form h3 { margin: 0 0 12px; }
+    .split .form .fgrid { grid-template-columns: 1fr 1fr; }
+    .split .form .fgrid .wide { grid-column: 1 / -1; }
+    .split .form button.add { width: 100%; }
+    @media (max-width: 980px) {
+      .split { grid-template-columns: 1fr; }
+      .split .form { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 18px; }
+    }
+
+    /* editor */
+    .flagchips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 14px; }
+    .flagchips .grow { flex: 1; }
+    .filterinfo { text-align: center; margin: 0 0 14px; }
+    .filterinfo .dupline { display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px; }
+    .filterinfo .dupline svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .filterinfo .hint { margin: 0; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 12px; cursor: pointer;
+      background: var(--inset); border: 1px solid var(--line); color: var(--text); box-shadow: none; font-weight: 700; font-size: 13px;
+    }
+    .chip:hover { filter: none; border-color: var(--sec); }
+    .chip.active { border-color: var(--pink); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pink) 35%, transparent); }
+    .chip.zero { opacity: .45; }
+    .chip svg, .pcard svg, .gicons svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .ic-address { color: var(--warn); } .ic-email { color: #ff7a6b; } .ic-card { color: #a78bfa; } .ic-name { color: var(--teal); }
+    .pcard {
+      background: var(--inset); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 12px;
+      padding: 12px 16px; margin-bottom: 10px;
+    }
+    .pcard.sev-addr { border-left-color: var(--warn); }
+    .pcard.sev-dup { border-left-color: #ff6b6b; }
+    .pcard.sev-ok { border-left-color: rgba(74, 222, 128, .55); }
+    .pcard .ptop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+    .pcard .ptop b { font-size: 15px; }
+    .pcard .pacts { margin-left: auto; display: flex; gap: 8px; }
+    .pcard .pmeta { color: var(--muted); margin: 2px 0 10px; }
+    .pcard .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; padding: 10px 0; border-top: 1px solid var(--line); }
+    .pcard .plabel { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+    .pcard .same { color: var(--ok); }
+    .pcard .pay { border-top: 1px solid var(--line); padding-top: 9px; color: var(--text2); }
+    .pcard .pay .plabel { display: inline; margin-right: 10px; }
+    .tagj { color: var(--pink); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border: 1px solid color-mix(in srgb, var(--pink) 50%, transparent); border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
+    .origline { color: var(--muted); font-size: 12px; }
+    .gicons { display: inline-flex; gap: 10px; }
+    .gicons span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; }
+
+    /* saved groups */
+    .group-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer;
+      background: var(--inset); border: 1px solid var(--line); border-radius: 12px;
+    }
+    .group-row:hover, .group-row.open { border-color: var(--pink); }
+    .group-row .gname { font-weight: 700; font-size: 15px; }
+    .group-row .gmeta { color: var(--muted); font-size: 12px; flex: 1 1 200px; }
+    .group-row .chev { color: var(--pink); width: 14px; }
+    .group-body { margin: -2px 0 12px; }
+
+    /* vault: one category at a time, list sized to the window so the page does not scroll */
+    #tabVault .note { margin: 0 0 10px; }
+    #tabVault .panel { margin-bottom: 0; }
+    #tabVault .items { max-height: calc(100vh - 500px); min-height: 140px; }
+
+    /* Vault logins: one header per retailer */
+    .items li.rethead { display: flex; align-items: center; gap: 8px; margin: 14px 0 2px; padding: 6px 2px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em; color: var(--head); background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; }
+    .items li.rethead:first-child { margin-top: 0; }
+    .items li.rethead .cnt { font-family: var(--mono); opacity: .85; }
+
+    /* settings dialog */
+    dialog { max-height: 88vh; overflow: auto; }
+    .setsec { padding: 14px 0 4px; border-top: 1px solid var(--line); margin-top: 12px; }
+    .setsec h3 { margin: 0 0 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--head); }
+    .setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0; }
+    .setrow.dim { opacity: .5; }
+    .seg { display: inline-flex; gap: 4px; padding: 3px; background: var(--inset); border: 1px solid var(--line); border-radius: 10px; }
+    .seg button { background: transparent; box-shadow: none; color: var(--muted); padding: 6px 16px; border-radius: 7px; font-size: 13px; }
+    .seg button.active { background: linear-gradient(90deg, var(--ga), var(--gb)); color: #fff; }
+
+    /* Streamer Mode: Blur style blurs every sensitive value; Asterisks style masks the text itself (privacy.js) */
+    body.priv-blur .sx, body.priv-blur .sxg { display: inline-block; filter: blur(3px); user-select: none; -webkit-user-select: none; }
+    body.priv-blur .sxg .sx { filter: none; } /* a whole-address group is blurred once, not twice */
+    body.priv-blur .sxin { filter: blur(3px); user-select: none; -webkit-user-select: none; }
+    body.priv-blur #tabVault .sxin { filter: none; -webkit-user-select: text; user-select: text; } /* Vault form fields stay sharp */
+    body.priv-ast input.sxin, body.priv-ast textarea.sxin { -webkit-text-security: disc; }
+
+    /* short status line for the header buttons (Open Hayha / Open Polar) */
+    /* Editor drag and drop */
+    .importrow { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .importrow h2 { margin: 0 0 2px; }
+    .importrow .hint { margin: 0; }
+    #edDrop .msg:empty, #edDrop .notes:empty { display: none; }
+    #edDrop .msg, #edDrop .notes { margin-top: 12px; min-height: 0; }
+    #edDrop { border: 1.5px dashed var(--sec); }
+    #edDrop:hover { border-color: var(--pink); box-shadow: 0 0 0 1px color-mix(in srgb, var(--pink) 30%, transparent), 0 0 26px color-mix(in srgb, var(--purple) 22%, transparent); }
+    #edDrop { position: relative; transition: border-color .15s, box-shadow .15s; }
+    #tabEditor.dragging #edDrop { border-color: var(--ga); box-shadow: 0 0 0 2px color-mix(in srgb, var(--pink) 45%, transparent), 0 0 28px color-mix(in srgb, var(--purple) 35%, transparent); }
+    #tabEditor.dragging #edDrop::after { content: 'Drop Hayha or Polar files to import'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      border-radius: inherit; background: color-mix(in srgb, var(--inset) 88%, transparent); color: var(--text); font-weight: 700; font-size: 16px; pointer-events: none; }
+
+    .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 50; max-width: min(640px, 90vw);
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 18px;
+      font-family: var(--mono); font-size: 13px; box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
+  </style>
+  <script src="theme.js"></script>
+</head>
+<body>
+
+<main>
+  <header>
+    <img class="logo" src="assets/logo.png" alt="PokeSluts logo" />
+    <div class="brand">
+      <h1><span class="poke">PokeSluts</span><span class="aio">AIO Studio</span></h1>
+    </div>
+    <div class="launchers">
+      <button type="button" class="launch" data-app="hayha" title="Open the Hayha app">Open Hayha</button>
+      <button type="button" class="launch" data-app="polar" title="Open the Polar app">Open Polar</button>
+      <button type="button" class="launch icon js-apps-cfg" title="Settings" aria-label="Settings">⚙</button>
+    </div>
+  </header>
+
+
+  <div class="shell">
+  <div class="workspace">
+  <div class="navrow"><nav class="tabs mainnav" role="tablist" aria-label="Sections"><button class="tab active" type="button" role="tab" data-nav="vault"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.3-7 10-4-1.7-7-5.4-7-10V6l7-3z"/><rect x="9.5" y="10.5" width="5" height="4" rx="1"/><path d="M10.5 10.5V9.2a1.5 1.5 0 0 1 3 0v1.3"/></svg>Vault</button><button class="tab" type="button" role="tab" data-nav="builder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3z"/><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/><path d="M5.5 16l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5L3.4 18l1.5-.6.6-1.5z"/></svg>Builder</button><button class="tab" type="button" role="tab" data-nav="converter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14"/><path d="M14 4l4 4-4 4"/><path d="M20 16H6"/><path d="M10 12l-4 4 4 4"/></svg>Converter</button><button class="tab" type="button" role="tab" data-nav="editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9"/><path d="M17 6h3"/><circle cx="15" cy="6" r="2"/><path d="M4 12h3"/><path d="M11 12h9"/><circle cx="9" cy="12" r="2"/><path d="M4 18h10"/><path d="M18 18h2"/><circle cx="16" cy="18" r="2"/></svg>Editor</button></nav></div>
+
+  <h2 class="sectitle" id="sectionTitle" hidden>Vault</h2>
+
+  <!-- ============ Converter ============ -->
+  <div id="tabConverter" hidden>
+    <div class="subrow">
+      <p class="sub">Convert Hayha and Polar profile and account files in either direction. The file type is detected automatically.</p>
+    </div>
+
+    <div id="drop" tabindex="0">
+      <strong>Drop a Hayha or Polar file here</strong>
+      <span>or click to choose one (.hayha or .json)</span>
+    </div>
+    <input id="file" type="file" accept=".hayha,.json" />
+
+    <section id="result">
+      <div class="bar">
+        <span class="badge" id="from"></span>
+        <span class="arrow">→</span>
+        <span class="badge" id="to"></span>
+        <span class="grow"></span>
+        <label class="group" id="groupLabel">Group name <input id="group" value="Hayha Import" maxlength="60" /></label>
+        <button id="save">Save converted file</button>
+      </div>
+      <div class="table-wrap"><table id="table"></table></div>
+      <ul class="notes" id="notes"></ul>
+    </section>
+    <div id="msg"></div>
+
+    <div class="panel" id="recent">
+      <div class="head">
+        <h2>Recently converted</h2>
+        <span class="grow"></span>
+        <button type="button" class="linkbtn" id="recentClear">Clear</button>
+      </div>
+      <ul class="items" id="recentList"></ul>
+    </div>
+  </div>
+
+  <!-- ============ Vault ============ -->
+  <div id="tabVault">
+
+      <div class="panel vaultcard">
+      <div class="vrail" id="vaultSubnav" role="tablist" aria-label="Vault sections"><h3>Vault</h3><button class="vcat active" type="button" data-vtab="addresses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span>Addresses</span></button><button class="vcat" type="button" data-vtab="cards"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/><path d="M6.5 15h3"/></svg><span>Credit Cards</span></button><button class="vcat" type="button" data-vtab="domains"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M15.5 12v1.3a2.7 2.7 0 0 0 5.4 0V12a8.9 8.9 0 1 0-3.5 7.1"/></svg><span>Catchalls</span></button><button class="vcat" type="button" data-vtab="logins"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg><span>Accounts</span></button></div>
+      <div class="vbody">
+      <div class="split" id="vpAddresses">
+        <div class="list">
+          <div class="listhead"><h2>Addresses</h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllAddr">Delete all</button></div>
+          <ul class="items" id="addrList"></ul>
+        </div>
+        <div class="form">
+          <h3 id="addrFormTitle">Add address</h3>
+          <div class="fgrid">
+            <label class="f wide">Address line 1<input id="vLine1" class="sxin" autocomplete="off" /></label>
+            <label class="f wide">Line 2 (apt / unit, optional)<input id="vLine2" autocomplete="off" /></label>
+            <label class="f wide">City<input id="vCity" autocomplete="off" /></label>
+            <label class="f">State<select id="vState"></select></label>
+            <label class="f">ZIP<input id="vZip" class="sxin" maxlength="10" autocomplete="off" /></label>
+          </div>
+          <button id="vAddAddr" class="add" type="button">Add address</button>
+          <button id="vCancelEdit" class="sec add" type="button" hidden style="margin-top: 8px">Cancel edit</button>
+        </div>
+      </div>
+
+      <div class="split" id="vpCards" hidden>
+        <div class="list">
+          <div class="listhead"><h2>Credit cards</h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllCards">Delete all</button></div>
+          <ul class="items" id="cardList"></ul>
+        </div>
+        <div class="form">
+          <h3>Add card</h3>
+          <div class="fgrid">
+            <label class="f wide">Nickname (optional)<input id="cNick" class="sxin" maxlength="40" autocomplete="off" /></label>
+            <label class="f wide">Name on card<input id="cHolder" class="sxin" autocomplete="off" /></label>
+            <label class="f wide">Card number<input id="cNumber" class="sxin" inputmode="numeric" autocomplete="off" /></label>
+            <label class="f">Exp month<input id="cMM" class="sxin" maxlength="2" placeholder="MM" autocomplete="off" /></label>
+            <label class="f">Exp year<input id="cYY" class="sxin" maxlength="4" placeholder="YY" autocomplete="off" /></label>
+            <label class="f">CVV<input id="cCvv" type="password" maxlength="4" autocomplete="off" /></label>
+          </div>
+          <label class="chk"><input type="checkbox" id="cLenient" /> Test card (skip number and expiry checks)</label>
+          <button id="vAddCard" class="add" type="button">Add card</button>
+          <details class="bulk">
+            <summary>Bulk import</summary>
+            <textarea id="cBulk" class="sxin" rows="5" placeholder="nickname:number:MM:YY:CVV&#10;number:MM:YYYY:CVV&#10;(one card per line, nickname is optional)"></textarea>
+            <label class="f">Nickname for cards without one (optional)<input id="cBulkNick" class="sxin" maxlength="40" autocomplete="off" /></label>
+            <label class="f">Name on these cards (optional)<input id="cBulkHolder" class="sxin" autocomplete="off" /></label>
+            <button id="vBulk" class="add" type="button">Import cards</button>
+          </details>
+        </div>
+      </div>
+
+      <div class="split" id="vpDomains" hidden>
+        <div class="list">
+          <div class="listhead"><h2>Catch-all domains</h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllDom">Delete all</button></div>
+          <ul class="items" id="domList"></ul>
+        </div>
+        <div class="form">
+          <h3>Add domain</h3>
+          <div class="fgrid">
+            <label class="f wide">Domain<input id="dDomain" class="sxin" autocomplete="off" /></label>
+          </div>
+          <button id="vAddDomain" class="add" type="button">Add domain</button>
+        </div>
+      </div>
+
+      <div class="split" id="vpLogins" hidden>
+        <div class="list">
+          <div class="listhead"><h2>Accounts</h2><span class="grow"></span><select id="acctSort" class="sortsel" aria-label="Sort accounts"><option value="date">Date added</option><option value="alpha">A–Z</option></select><button type="button" class="linkbtn dangerlink" id="delAllAcct">Delete all</button></div>
+          <ul class="items" id="acctList"></ul>
+        </div>
+        <div class="form">
+          <h3>Add account</h3>
+          <div class="fgrid">
+            <label class="f wide">Retailer
+              <select id="aRetailer">
+                <option value="target">Target</option>
+                <option value="walmart">Walmart</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label class="f wide">Email<input id="aEmail" class="sxin" autocomplete="off" /></label>
+            <label class="f wide">Password<input id="aPass" type="password" autocomplete="off" /></label>
+          </div>
+          <button id="vAddAcct" class="add" type="button">Add account</button>
+          <details class="bulk">
+            <summary>Bulk import</summary>
+            <textarea id="aBulk" class="sxin" rows="5" placeholder="email:password&#10;(one account per line, uses the retailer chosen above)"></textarea>
+            <button id="vBulkAcct" class="add" type="button">Import accounts</button>
+          </details>
+        </div>
+      </div>
+      <div class="msg" id="vMsg"></div>
+      </div>
+      </div>
+      <p class="note" id="vaultSec" style="margin: 12px 4px 0"></p>
+    </div>
+
+    <!-- Builder -->
+    <div id="tabBuilder" hidden>
+      <div class="panel">
+        <h2>Profile settings</h2>
+        <div class="fgrid">
+          <label class="f" style="grid-column: span 2">Group name (saved after export)<input id="bGroup" maxlength="60" autocomplete="off" /></label>
+          <label class="f" style="grid-column: span 2">Profile name prefix<input id="bPrefix" maxlength="40" autocomplete="off" /></label>
+        </div>
+        <div class="fgrid">
+          <label class="f">Site
+            <select id="bSite">
+              <option value="">Select retailer</option>
+              <option value="target">Target</option>
+              <option value="walmart">Walmart</option>
+              <option value="pokemoncenter">Pokémon Center</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="f" style="grid-column: span 2">Address (from vault)<select id="bAddress"></select></label>
+          <label class="f">Profiles to generate<input id="bCount" type="number" min="1" max="500" /></label>
+        </div>
+        <div class="fgrid">
+          <label class="f">First name
+            <select id="bFirstMode"><option value="random">Random</option><option value="male">Random male</option><option value="female">Random female</option><option value="custom">Same on all</option></select>
+          </label>
+          <label class="f" id="bFirstWrap" hidden>First name to use<input id="bFirst" class="sxin" autocomplete="off" /></label>
+          <label class="f">Last name
+            <select id="bLastMode"><option value="random">Random</option><option value="same">Same on all</option></select>
+          </label>
+          <label class="f" id="bLastWrap" hidden>Last name to use<input id="bLast" class="sxin" autocomplete="off" /></label>
+        </div>
+        <div class="fgrid">
+          <label class="f" id="bDomainWrap">Catch-all domain<select id="bDomainSel"></select></label>
+          <label class="f" id="bDomainNewWrap" hidden>New domain<input id="bDomain" class="sxin" autocomplete="off" /></label>
+          <label class="f">Email format
+            <select id="bEmailStyle">
+              <option value="firstlast">firstlast@domain</option>
+              <option value="first.last">first.last@domain</option>
+              <option value="firstlastNN">firstlast + 2 digits</option>
+              <option value="sequence">Numbered accounts</option>
+              <option value="accounts">Match vault accounts</option>
+            </select>
+          </label>
+          <label class="f" id="bEmailPrefixWrap" hidden>Email prefix<input id="bEmailPrefix" class="sxin" autocomplete="off" /></label>
+          <label class="f" id="bEmailStartWrap" hidden>First account number<input id="bEmailStart" type="number" min="0" /></label>
+          <label class="f">Phone
+            <select id="bPhoneMode">
+              <option value="random">Random Phone Number</option>
+              <option value="area">Custom Area Code</option>
+              <option value="same">Same Number</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="f" id="bAreaWrap" hidden>Area code<input id="bArea" maxlength="3" inputmode="numeric" autocomplete="off" /></label>
+          <label class="f" id="bPhoneWrap" hidden>Phone number<input id="bPhone" class="sxin" autocomplete="off" /></label>
+        </div>
+        <label class="chk" id="bDomainSaveWrap" hidden><input type="checkbox" id="bDomainSave" checked /> Save this domain to the vault</label>
+        <p class="hint" id="bEmailHint" hidden></p>
+        <div id="bAcctBox" hidden>
+          <div class="pickhead">
+            <h3>Accounts</h3>
+            <span class="count" id="bAcctSummary"></span>
+            <span class="grow"></span>
+            <button type="button" class="linkbtn" id="bAcctAll">Select all</button>
+            <button type="button" class="linkbtn" id="bAcctNone">Select none</button>
+          </div>
+          <ul class="items" id="bAcctList"></ul>
+        </div>
+        <h3>Address jigging</h3>
+        <p class="hint" id="bHint"></p>
+        <h3>Extra jigs</h3>
+        <label class="chk"><input type="checkbox" id="bNameJig" /> Jig the first name (nickname, middle initial or doubled letter; only when First name is “Same on all”)</label>
+
+        <div class="pickhead">
+          <h3>Available Cards</h3>
+          <span class="count" id="bPickSummary"></span>
+          <span class="grow"></span>
+          <button type="button" class="linkbtn" id="bPickAvail">Select all</button>
+          <button type="button" class="linkbtn" id="bPickNone">Select none</button>
+        </div>
+        <ul class="items" id="bCardList"></ul>
+        <label class="chk"><input type="checkbox" id="bMark" checked /> Mark the cards used as “in use” after export</label>
+
+        <button id="bGenerate" type="button">Generate profiles</button>
+      </div>
+
+      <section id="bResult" hidden>
+        <div class="bar">
+          <span class="badge" id="bCountBadge"></span>
+          <span class="grow"></span>
+          <button id="bExportHayha" type="button">Export for Hayha</button>
+          <button id="bExportPolar" type="button">Export for Polar</button>
+          <button id="bExportCsv" type="button" title="Line 1, Line 2, City, State, Zip, Phone, First, Last (no card data)">Export CSV</button>
+          <button id="bToEditor" type="button" title="Send this batch to the Editor tab to check duplicates and re-jig addresses">Open in Editor</button>
+        </div>
+        <div class="table-wrap"><table id="bTable"></table></div>
+        <ul class="notes" id="bNotes"></ul>
+      </section>
+      <div class="msg" id="bMsg"></div>
+
+      <div class="panel" id="groupsPanel" style="margin-top: 22px">
+        <h2>Saved groups <span class="count" id="groupCount"></span></h2>
+        <div id="groupList"></div>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div id="tabEditor" hidden>
+      <div class="panel" id="edDrop">
+        <div class="importrow">
+          <div>
+            <h2>Import profiles</h2>
+            <p class="hint">Drop Hayha or Polar files anywhere on this tab, or pick them. Duplicates are flagged automatically.</p>
+          </div>
+          <button id="edImportBtn" type="button">Import files</button>
+        </div>
+        <input id="edFile" type="file" accept=".hayha,.json" multiple hidden />
+        <ul class="notes" id="edNotes"></ul>
+        <div class="msg" id="edMsg"></div>
+      </div>
+      <div class="panel">
+        <h2>Imported files <span class="count" id="edCount"></span></h2>
+        <div id="edList"></div>
+      </div>
+      <div class="panel">
+        <h2>Built files <span class="count" id="edBuiltCount"></span></h2>
+        <div id="edBuiltList"></div>
+      </div>
+    </div>
+  </div><!-- /workspace -->
+  </div><!-- /shell -->
+</main>
+
+<dialog id="settingsDlg">
+  <h2>Settings</h2>
+
+  <div class="setsec">
+    <h3>Streamer Mode (Privacy Filter)</h3>
+    <p class="hint" style="margin-top: 4px">Hides addresses, cards, emails, accounts and phone numbers on screen in every tab. It only changes what is shown: your vault and exported files are never changed.</p>
+    <div class="setrow">
+      <span>Enable Streamer Mode</span>
+      <span class="seg" role="group" aria-label="Streamer Mode">
+        <button type="button" data-sm="off">Off</button>
+        <button type="button" data-sm="on">On</button>
+      </span>
+    </div>
+    <div class="setrow" id="smStyleRow">
+      <span>Masking style</span>
+      <span class="seg" role="group" aria-label="Masking style">
+        <button type="button" data-ss="blur" title="Blur sensitive values">Blur</button>
+        <button type="button" data-ss="asterisks" title="Replace sensitive values with asterisks">****</button>
+      </span>
+    </div>
+    <p class="hint" style="margin-top: 0">Dropdown lists and confirmation boxes can't be blurred, so they always show asterisks while Streamer Mode is on.</p>
+  </div>
+
+  <div class="setsec">
+    <h3>Theme</h3>
+    <p class="hint" style="margin-top: 4px">Changes the colors of the whole app. Your choice is remembered.</p>
+    <select id="themeSel" aria-label="Theme"></select>
+  </div>
+
+  <div class="setsec">
+    <h3>Hayha and Polar</h3>
+    <p class="hint" style="margin-top: 4px">The app looks for them automatically. If it cannot find one, or finds the wrong one, choose the app (.exe) or its shortcut (.lnk).</p>
+    <div id="appsRows"></div>
+  </div>
+
+  <div class="setsec">
+    <h3>Data &amp; Backup</h3>
+    <p class="hint" style="margin-top: 4px">Covers everything the app stores: addresses, cards, catch-all domains, accounts, saved groups, Editor files, the Recently converted list and the Hayha / Polar paths. A backup is one file locked with a password you choose, so it also works on another computer.</p>
+    <div class="setrow">
+      <span>Save everything to a backup file</span>
+      <button type="button" class="sec" data-data="backup">Back up…</button>
+    </div>
+    <div class="setrow">
+      <span>Replace everything with a backup file</span>
+      <button type="button" class="sec" data-data="restore">Restore…</button>
+    </div>
+    <div class="setrow">
+      <span>Erase everything from this app</span>
+      <button type="button" class="sec danger" data-data="wipe">Wipe…</button>
+    </div>
+  </div>
+
+  <div class="bar" style="margin: 14px 0 0; justify-content: flex-end"><button type="button" class="sec" id="appsClose">Close</button></div>
+</dialog>
+<dialog id="dataDlg">
+  <h2 id="dataTitle">Backup</h2>
+  <p class="hint" id="dataText" style="margin-top: 4px"></p>
+  <label class="f" id="dataPassWrap" style="margin-top: 12px"><span id="dataPassLabel">Password</span><input id="dataPass" type="password" autocomplete="off" /></label>
+  <label class="f" id="dataPass2Wrap" style="margin-top: 10px">Repeat password<input id="dataPass2" type="password" autocomplete="off" /></label>
+  <label class="f" id="dataConfirmWrap" style="margin-top: 12px">Type WIPE to confirm<input id="dataConfirm" autocomplete="off" placeholder="WIPE" /></label>
+  <div class="msg" id="dataMsg"></div>
+  <div class="bar" style="margin: 10px 0 0; justify-content: flex-end"><button type="button" class="sec" id="dataCancel">Cancel</button><button type="button" id="dataGo">Continue</button></div>
+</dialog>
+<dialog id="mergeDlg">
+  <h2 id="mergeTitle">Merge files</h2>
+  <p class="hint" style="margin-top: 4px">Pick other Editor files or saved groups to merge in. Nothing you pick is changed or removed.</p>
+  <ul class="items" id="mergeList"></ul>
+  <label class="f" style="margin-top: 12px">Save as a new file (optional)<input id="mergeName" maxlength="60" placeholder="Leave blank to add them into this file" autocomplete="off" /></label>
+  <div class="msg" id="mergeMsg"></div>
+  <div class="bar" style="margin: 10px 0 0; justify-content: flex-end"><button type="button" class="sec" id="mergeCancel">Cancel</button><button type="button" id="mergeGo">Merge</button></div>
+</dialog>
+<div id="toast" class="toast" hidden></div>
+<script src="privacy.js"></script>
+<script src="renderer.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>

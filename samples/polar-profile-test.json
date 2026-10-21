@@ -1,0 +1,50 @@
+{
+  "polarExport": {
+    "version": 1,
+    "kind": "profiles",
+    "format": "aycd",
+    "profileGroup": "ACO Site TEST",
+    "exportedAt": "2026-10-06T05:51:47.374Z",
+    "profiles": [
+      {
+        "name": "test",
+        "notes": "",
+        "billingAddress": {
+          "name": "test ltest",
+          "email": "test@test.com",
+          "phone": "1234567890",
+          "line1": "123 main st",
+          "line2": "",
+          "line3": "",
+          "postCode": "92127",
+          "city": "san diego",
+          "country": "United States",
+          "state": "California"
+        },
+        "shippingAddress": {
+          "name": "test ltest",
+          "email": "test@test.com",
+          "phone": "1234567890",
+          "line1": "123 main st",
+          "line2": "",
+          "line3": "",
+          "postCode": "92127",
+          "city": "san diego",
+          "country": "United States",
+          "state": "California"
+        },
+        "paymentDetails": {
+          "nameOnCard": "test ltest",
+          "cardType": "",
+          "cardNumber": "1234567890123456",
+          "cardExpMonth": "01",
+          "cardExpYear": "2028",
+          "cardCvv": "123"
+        },
+        "sameBillingAndShippingAddress": true,
+        "onlyCheckoutOnce": false,
+        "matchNameOnCardAndAddress": false
+      }
+    ]
+  }
+}

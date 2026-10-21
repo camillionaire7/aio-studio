@@ -1,0 +1,65 @@
+name: Build Windows & macOS App
+
+on:
+  workflow_dispatch: # Allows 1-click manual builds from the GitHub Actions tab
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*' # Automatically creates a GitHub Release when you push a version tag like v2.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Node 20 LTS avoids C++20 node-gyp errors on macOS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows App
+        if: matrix.os == 'windows-latest'
+        run: npm run dist:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build macOS App (Apple Silicon + Intel)
+        if: matrix.os == 'macos-latest'
+        run: npm run dist:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Installers as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Installers-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: ignore
+
+      - name: Publish to GitHub Releases (When pushing a v* tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.dmg
