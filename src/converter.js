@@ -438,7 +438,39 @@ function buildCsvFile(profiles) {
   return rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 
+// ---- account exports (Vault > Accounts). Each account: { retailer, email, password }.
+const RETAILER_SITE = { target: 'Target', walmart: 'Walmart', other: 'Other', pokemoncenter: 'Pokemon Center' };
+const siteName = (r) => RETAILER_SITE[r] || str(r);
+const byEmail = (a, b) => nameCollator.compare(trim(a.email), trim(b.email));
+
+// Hayha: one entry per login. The same email + password saved for several retailers becomes ONE entry with several sites.
+function buildHayhaAccountsFile(accounts) {
+  const groupId = uuid();
+  const merged = new Map();
+  accounts.slice().sort(byEmail).forEach((a) => {
+    const key = `${a.email}\u0000${a.password}`;
+    const site = { name: siteName(a.retailer), value: slug(siteName(a.retailer)) };
+    if (merged.has(key)) merged.get(key).site.push(site);
+    else merged.set(key, { username: str(a.email), password: str(a.password), groupId, id: uuid(), site: [site], status: 'Not Signed In' });
+  });
+  return JSON.stringify([...merged.values()]);
+}
+
+// Polar: one entry per account, with the retailer as its type.
+function buildPolarAccountsFile(accounts, groupName) {
+  const group = trim(groupName) || 'AIO Studio';
+  return JSON.stringify({
+    polarExport: {
+      version: 1,
+      kind: 'accounts',
+      accountGroup: group,
+      exportedAt: new Date().toISOString(),
+      accounts: accounts.slice().sort(byEmail).map((a) => ({ accountGroup: group, id: uuid(), password: str(a.password), type: siteName(a.retailer), username: str(a.email) })),
+    },
+  }, null, 2);
+}
+
 // The first 56 entries are US states, DC and territories; the rest are Canadian provinces.
 const US_STATES = STATES.slice(0, 56);
 
-module.exports = { convert, detect, lookupState, maskCard, STATES, US_STATES, buildHayhaFile, buildPolarFile, buildCsvFile, compareProfiles, sortProfiles };
+module.exports = { convert, detect, lookupState, maskCard, STATES, US_STATES, buildHayhaFile, buildPolarFile, buildCsvFile, buildHayhaAccountsFile, buildPolarAccountsFile, RETAILER_SITE, compareProfiles, sortProfiles };

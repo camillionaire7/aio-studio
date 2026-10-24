@@ -8,6 +8,7 @@ const { createApi } = require('./api');
 const { History } = require('./history');
 const { createLauncher } = require('./launcher');
 const { createBackupService, FILE_EXT } = require('./backup');
+const { startHotReload } = require('./hotReload');
 
 // The converted output stays in the main process; the window only ever sees a
 // masked preview, and Save writes this stored copy.
@@ -17,6 +18,11 @@ let editorImport = null; // the Editor's import handler, so Recently converted c
 let vault = null;
 let launcher = null;
 let resetBuilderDraft = null; // clears the Builder's generated batch (after a restore or wipe)
+
+// Windows/Electron can leave the page without keyboard focus after a native dialog; hand it back.
+function refocus(win) {
+  if (win && !win.isDestroyed()) { win.focus(); win.webContents.focus(); }
+}
 
 function createWindow() {
   // Open large: up to 1440x960, but never bigger than the screen's usable area.
@@ -38,6 +44,17 @@ function createWindow() {
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, 'index.html'));
+  return win;
+}
+
+// Running from source: replacing files in this folder reloads the window (or restarts the app for main-process files).
+function enableHotReload() {
+  if (app.isPackaged) return;
+  startHotReload({
+    dir: __dirname,
+    onWindow: () => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed()) w.webContents.reloadIgnoringCache(); }),
+    onApp: () => { app.relaunch(); app.exit(0); },
+  });
 }
 
 ipcMain.handle('convert', (_evt, { text, groupName }) => {
@@ -68,6 +85,7 @@ ipcMain.handle('save', async (evt) => {
     defaultPath: lastResult.fileName,
     filters: [{ name: ext === 'hayha' ? 'Hayha file' : 'JSON file', extensions: [ext] }],
   });
+  refocus(win);
   if (canceled || !filePath) return { ok: false, canceled: true };
   try {
     fs.writeFileSync(filePath, lastResult.outputText, 'utf8');
@@ -89,10 +107,12 @@ function registerVaultApi() {
   const handlers = createApi({
     vault,
     showSave: async ({ defaultPath, ext }) => {
-      const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), {
+      const win = BrowserWindow.getFocusedWindow();
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
         defaultPath,
         filters: [{ name: ext === 'hayha' ? 'Hayha file' : ext === 'csv' ? 'CSV file' : ext === FILE_EXT ? 'AIO Studio backup' : 'JSON file', extensions: [ext] }],
       });
+      refocus(win);
       return canceled ? null : filePath;
     },
     writeFile: (p, text) => fs.writeFileSync(p, text, 'utf8'),
@@ -124,6 +144,7 @@ function registerSystemApi() {
         properties: mac ? ['openFile', 'openDirectory'] : ['openFile'],
         filters: process.platform === 'win32' ? [{ name: 'Application or shortcut', extensions: ['exe', 'lnk'] }, { name: 'All files', extensions: ['*'] }] : undefined,
       });
+      refocus(win);
       return r.canceled ? null : r.filePaths[0];
     },
   });
@@ -162,16 +183,20 @@ function registerDataApi() {
   const service = createBackupService({
     vault, history, launcher,
     showSave: async ({ defaultPath, ext }) => {
-      const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), {
+      const win = BrowserWindow.getFocusedWindow();
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
         title: 'Save backup', defaultPath, filters: [{ name: 'AIO Studio backup', extensions: [ext] }],
       });
+      refocus(win);
       return canceled ? null : filePath;
     },
     showOpen: async ({ ext }) => {
-      const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+      const win = BrowserWindow.getFocusedWindow();
+      const r = await dialog.showOpenDialog(win, {
         title: 'Choose a backup file', properties: ['openFile'],
         filters: [{ name: 'AIO Studio backup', extensions: [ext] }, { name: 'All files', extensions: ['*'] }],
       });
+      refocus(win);
       return r.canceled ? null : r.filePaths[0];
     },
     readFile: (p) => fs.readFileSync(p, 'utf8'),
@@ -190,6 +215,7 @@ app.whenReady().then(() => {
   registerVaultApi();
   registerDataApi();
   createWindow();
+  enableHotReload();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

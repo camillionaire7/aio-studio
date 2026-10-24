@@ -4,7 +4,7 @@
 
 const crypto = require('crypto');
 const { lookupState, buildHayhaFile, buildPolarFile } = require('./converter');
-const { jigAddress } = require('./jig');
+const { jigAddress, parseAddress } = require('./jig');
 
 const str = (v) => (v === undefined || v === null ? '' : String(v));
 const trim = (v) => str(v).trim();
@@ -116,23 +116,85 @@ function analyze(profiles) {
 
 // Pick a different address for one profile, built from the address it was imported with.
 // `taken` = address keys used by the other profiles in the file (and, optionally, the current one).
-function rejigProfile(profile, taken, rng = Math.random) {
-  const r = jigAddress({ line1: profile.orig.line1, line2: profile.orig.line2 }, 500, { rng, mode: 'TARGET' });
-  if (!r.variants.length) return { ok: false, error: 'This address could not be read (it needs a house number and street name), so it cannot be jigged.' };
+// `isUsed(line1, zip)` (optional) = true for a jig used in an earlier export or import: those are never picked.
+function rejigProfile(profile, taken, rng = Math.random, isUsed = null) {
+  const exclude = isUsed ? (l1) => isUsed(l1, profile.address.zip) : undefined;
+  const r = jigAddress({ line1: profile.orig.line1, line2: profile.orig.line2 }, 500, { rng, mode: 'TARGET', exclude });
+  const noneLeft = `No other unused variation is left for this address.${isUsed ? ' Jigs used in earlier exports or imports are skipped: re-add some in Vault > Used Jigs.' : ''}`;
+  if (!r.variants.length) {
+    // nothing came back: either the address can't be read, or every variation is already used
+    if (!parseAddress({ line1: profile.orig.line1, line2: profile.orig.line2 })) return { ok: false, error: 'This address could not be read (it needs a house number and street name), so it cannot be jigged.' };
+    return { ok: false, error: noneLeft };
+  }
   const current = addrKey(profile.address);
   const options = r.variants.filter((v) => {
     const k = addrKey({ ...profile.address, line1: v.line1, line2: v.line2 });
-    return k !== current && !taken.has(k);
+    return k !== current && !taken.has(k) && !(isUsed && isUsed(v.line1, profile.address.zip));
   });
-  if (!options.length) return { ok: false, error: 'No other unused variation is left for this address.' };
+  if (!options.length) return { ok: false, error: noneLeft };
   const v = options[Math.floor(rng() * options.length)];
   profile.address.line1 = v.line1;
   profile.address.line2 = v.line2;
   return { ok: true };
 }
 
+// Manual edit of one profile. `f` holds the fields to change; a blank card number or CVV keeps the current one.
+// Returns { ok } or { ok:false, error }. Nothing is changed when validation fails.
+function updateProfile(p, f) {
+  f = f || {};
+  const has = (k) => Object.prototype.hasOwnProperty.call(f, k) && f[k] !== undefined && f[k] !== null;
+  const a = f.address || {};
+  const c = f.card || {};
+  const email = has('email') ? trim(f.email) : p.email;
+  if (email && !/^[^\s@]+@[^\s@]+$/.test(email)) return { ok: false, error: 'That email address does not look right.' };
+  let number = p.card.number;
+  if (trim(c.number)) {
+    number = str(c.number).replace(/[\s-]/g, '');
+    if (!/^\d{12,19}$/.test(number)) return { ok: false, error: 'The card number must be 12 to 19 digits.' };
+  }
+  let cvv = p.card.cvv;
+  if (trim(c.cvv)) {
+    cvv = trim(c.cvv);
+    if (!/^\d{3,4}$/.test(cvv)) return { ok: false, error: 'The CVV must be 3 or 4 digits.' };
+  }
+  let expMonth = p.card.expMonth;
+  if (c.expMonth !== undefined && trim(c.expMonth) !== '') {
+    expMonth = trim(c.expMonth);
+    if (!/^\d{1,2}$/.test(expMonth) || +expMonth < 1 || +expMonth > 12) return { ok: false, error: 'The expiry month must be 1 to 12.' };
+  }
+  let expYear = p.card.expYear;
+  if (c.expYear !== undefined && trim(c.expYear) !== '') {
+    expYear = trim(c.expYear);
+    if (!/^(\d{2}|\d{4})$/.test(expYear)) return { ok: false, error: 'The expiry year must be 2 or 4 digits.' };
+  }
+  const line1 = a.line1 !== undefined ? trim(a.line1) : p.address.line1;
+  if (!line1) return { ok: false, error: 'The address needs a street line.' };
+
+  if (has('name')) p.name = trim(f.name);
+  if (has('first')) p.first = trim(f.first);
+  if (has('last')) p.last = trim(f.last);
+  if (!p.name && !p.first && !p.last) { return { ok: false, error: 'The profile needs a name.' }; }
+  p.email = email;
+  if (has('phone')) p.phone = trim(f.phone);
+  const line2 = a.line2 !== undefined ? trim(a.line2) : p.address.line2;
+  if (line1 !== p.address.line1 || line2 !== p.address.line2) p.orig = { line1, line2 }; // an edited address is the new starting point for Jig / Reset
+  p.address.line1 = line1;
+  p.address.line2 = line2;
+  if (a.city !== undefined) p.address.city = trim(a.city);
+  if (a.state !== undefined) p.address.state = normState(a.state);
+  if (a.zip !== undefined) p.address.zip = trim(a.zip);
+  if (a.country !== undefined) p.address.country = trim(a.country) || 'United States';
+  p.card.number = number;
+  p.card.brand = detectBrand(number);
+  p.card.cvv = cvv;
+  p.card.expMonth = expMonth;
+  p.card.expYear = expYear;
+  if (c.holder !== undefined) p.card.holder = trim(c.holder);
+  return { ok: true };
+}
+
 // Re-jig every profile whose address duplicates an earlier one. The first profile in each duplicate set is kept.
-function fixDuplicateAddresses(profiles, rng = Math.random) {
+function fixDuplicateAddresses(profiles, rng = Math.random, isUsed = null) {
   const taken = new Set(profiles.map((p) => addrKey(p.address)));
   const seen = new Set();
   let fixed = 0;
@@ -141,7 +203,7 @@ function fixDuplicateAddresses(profiles, rng = Math.random) {
     const k = addrKey(p.address);
     if (!seen.has(k)) { seen.add(k); continue; }
     const others = new Set(taken);
-    const r = rejigProfile(p, others, rng);
+    const r = rejigProfile(p, others, rng, isUsed);
     if (r.ok) {
       const nk = addrKey(p.address);
       taken.add(nk);
@@ -164,7 +226,7 @@ function publicProfile(p, flags) {
     address: { ...p.address, state: { ...p.address.state } },
     origAddress: { ...p.orig },
     changed: isChanged(p),
-    card: { brand: p.card.brand, last4: p.card.number.slice(-4), expMonth: trim(p.card.expMonth).padStart(2, '0'), expYear: exp.length === 4 ? exp.slice(-2) : exp },
+    card: { brand: p.card.brand, holder: p.card.holder, last4: p.card.number.slice(-4), expMonth: trim(p.card.expMonth).padStart(2, '0'), expYear: exp.length === 4 ? exp.slice(-2) : exp },
     flags,
   };
 }
@@ -173,4 +235,4 @@ function exportProfiles(rec, format) {
   return format === 'polar' ? buildPolarFile(rec.profiles, rec.name) : buildHayhaFile(rec.profiles);
 }
 
-module.exports = { makeProfile, parseProfilesFile, analyze, rejigProfile, fixDuplicateAddresses, publicProfile, exportProfiles, addrKey, isChanged };
+module.exports = { makeProfile, parseProfilesFile, analyze, rejigProfile, updateProfile, fixDuplicateAddresses, publicProfile, exportProfiles, addrKey, isChanged };

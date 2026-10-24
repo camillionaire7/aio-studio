@@ -25,6 +25,27 @@ function groupByDay(items, getIso) {
   });
   return [...days.values()].sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0));
 }
+// In-app replacement for the browser confirm() box. A native confirm() can leave Electron on Windows unable to type
+// into text fields afterwards (e.g. renaming a group), and it cannot be styled. Resolves true (OK) or false (Cancel / Esc).
+function askConfirm(message, okText = 'Delete') {
+  const dlg = $('confirmDlg');
+  $('confirmText').textContent = message;
+  $('confirmOk').textContent = okText;
+  return new Promise((resolve) => {
+    let answer = false;
+    const ok = () => { answer = true; dlg.close(); };
+    const cancel = () => dlg.close();
+    $('confirmOk').addEventListener('click', ok);
+    $('confirmCancel').addEventListener('click', cancel);
+    dlg.addEventListener('close', () => {
+      $('confirmOk').removeEventListener('click', ok);
+      $('confirmCancel').removeEventListener('click', cancel);
+      resolve(answer);
+    }, { once: true });
+    dlg.showModal();
+    $('confirmCancel').focus(); // the safe choice has focus, so a stray Enter does not delete anything
+  });
+}
 const drop = $('drop');
 const fileInput = $('file');
 let currentText = null;
@@ -194,7 +215,7 @@ function renderRecent(items) {
 }
 
 $('recentClear').addEventListener('click', async () => {
-  if (!confirm('Clear the recently converted list? Your saved files are not touched.')) return;
+  if (!(await askConfirm('Clear the recently converted list? Your saved files are not touched.', 'Clear'))) return;
   const r = await window.api.historyClear();
   if (r.ok) renderRecent(r.history);
 });
@@ -302,7 +323,7 @@ $('appsClose').addEventListener('click', () => $('settingsDlg').close());
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const countsText = (c) => [
     plural(c.addresses, 'address', 'addresses'), plural(c.cards, 'card', 'cards'), plural(c.domains, 'catch-all domain', 'catch-all domains'),
-    plural(c.accounts, 'account', 'accounts'), plural(c.groups, 'saved group', 'saved groups'), plural(c.imports, 'Editor file', 'Editor files'),
+    plural(c.accounts, 'account', 'accounts'), plural(c.groups, 'saved group', 'saved groups'), plural(c.imports, 'Editor file', 'Editor files'), plural(c.jigs, 'used address jig', 'used address jigs'),
     plural(c.history, 'recently converted entry', 'recently converted entries'),
   ].join(', ');
 

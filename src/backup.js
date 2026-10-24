@@ -68,6 +68,7 @@ function createBackupService({ vault, history, launcher, showSave, showOpen, rea
     accounts: p.vault.accounts.length,
     groups: p.vault.groups.length,
     imports: p.vault.imports.length,
+    jigs: p.vault.usedJigs.length,
     history: p.history.length,
   });
 

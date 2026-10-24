@@ -123,21 +123,47 @@ function findInlineUnit(line) {
   return { index: m.index, text: line.slice(m.index).trim() };
 }
 
+const HIGHWAY_WORD_RE = /^(hwy|highway|route|rte|rt|us|sr|cr|fm|rr|i|interstate|state|county|co|pr|hi)\.?$/i;
 const cleanNumber = (n) => String(n).trim().replace(/[^A-Za-z0-9]/g, ''); // never any punctuation on the house number
 
 // -> { baseStreet, suffix (canonical or null), postDirection, unitCore, isMultiUnit } or null
 function parseAddress(base) {
   let line1 = String((base && (base.line1 !== undefined ? base.line1 : base.baseStreet)) || '').trim().replace(/\s+/g, ' ');
   let suffixText = base && base.streetSuffix ? String(base.streetSuffix).trim() : '';
-  let unitRaw = String((base && (base.line2 !== undefined ? base.line2 : base.existingUnit)) || '').trim();
-  if (base && base.line2 === undefined && base.existingUnit === undefined) unitRaw = '';
-  const found = findInlineUnit(line1);
-  if (found) {
-    unitRaw = found.text;
-    line1 = line1.slice(0, found.index).trim();
+  let line2 = String((base && (base.line2 !== undefined ? base.line2 : base.existingUnit)) || '').trim();
+  if (base && base.line2 === undefined && base.existingUnit === undefined) line2 = '';
+  // Units can be stacked ("17161 Alva Rd unit 2814 Door 017") or split over both lines: peel every trailing unit
+  // off, in reading order, then keep the one that looks like the real unit (padded 0xx values are jig leftovers).
+  const units = [];
+  const peel = (text, minTokens) => {
+    let t = text;
+    const found = [];
+    for (let i = 0; i < 6; i++) {
+      const f = findInlineUnit(t);
+      if (!f || t.slice(0, f.index).trim().split(' ').filter(Boolean).length < minTokens) break;
+      found.unshift(f.text);
+      t = t.slice(0, f.index).trim();
+    }
+    return { rest: t, found };
+  };
+  const p1 = peel(line1, 2);
+  line1 = p1.rest;
+  units.push(...p1.found);
+  if (line2) {
+    const p2 = peel(' ' + line2, 0);
+    if (p2.rest.trim()) units.push(p2.rest.trim());
+    units.push(...p2.found);
   }
+  const real = units.find((u) => !/^\D*0\d/.test(u)) || units[0] || '';
+  let unitRaw = real;
   if (suffixText) line1 = `${line1} ${suffixText}`;
   const tokens = line1.split(' ').filter(Boolean);
+  // A bare number or number+letter at the end with no designator ("123 Main 222", "123 Main St 4B") is already a unit,
+  // unless it is a highway number ("123 State Route 99", "500 US Hwy 1").
+  if (!unitRaw && tokens.length >= 3 && /\d/.test(tokens[tokens.length - 1]) && /^[A-Za-z]?\d+[A-Za-z]?$/.test(tokens[tokens.length - 1]) &&
+      !HIGHWAY_WORD_RE.test(tokens[tokens.length - 2]) && !/^\d+(st|nd|rd|th)$/i.test(tokens[tokens.length - 1])) {
+    unitRaw = tokens.pop();
+  }
   if (tokens.length < 2 || !/^\d/.test(tokens[0])) return null;
   tokens[0] = cleanNumber(tokens[0]);
   if (!tokens[0]) return null;
@@ -184,7 +210,7 @@ const line1Of = (p, suffixText, designator, unit) =>
   [p.baseStreet, suffixText, p.postDirection, designator, unit].filter(Boolean).join(' ');
 
 // Mode 1: no apartment. Random suffix style + designator + fake unit code.
-function generateNoApartment(p, count, rng) {
+function generateNoApartment(p, count, rng, exclude) {
   const styles = p.suffix ? Object.values(suffixRoles(p.suffix)) : [''];
   const designators = count > 20 ? [...PRIMARY_DESIGNATORS, ...EXTENDED_DESIGNATORS] : PRIMARY_DESIGNATORS;
   const seen = new Set();
@@ -193,7 +219,7 @@ function generateNoApartment(p, count, rng) {
     let made = false;
     for (let t = 0; t < 1000 && !made; t++) {
       const line1 = line1Of(p, pick(styles, rng), pick(designators, rng), fakeUnitCode(rng));
-      if (seen.has(line1)) continue;
+      if (seen.has(line1) || exclude(line1)) continue; // never repeat a jig that was used before
       seen.add(line1);
       out.push({ line1, line2: '' });
       made = true;
@@ -204,7 +230,7 @@ function generateNoApartment(p, count, rng) {
 }
 
 // Mode 2: has an apartment. Fixed priority list first, then every remaining suffix x designator x unit combination.
-function generateWithApartment(p, count) {
+function generateWithApartment(p, count, exclude) {
   const r = p.suffix ? suffixRoles(p.suffix) : { full: '', fullDot: '', abbr: '', abbrDot: '' };
   const [u0, u1, u2] = getUnitValueVariants(p.unitCore);
   const combos = [
@@ -222,7 +248,7 @@ function generateWithApartment(p, count) {
   const out = [];
   for (const [st, d, unit] of combos) {
     const line1 = line1Of(p, st, d, unit);
-    if (seen.has(line1)) continue;
+    if (seen.has(line1) || exclude(line1)) continue;
     seen.add(line1);
     out.push({ line1, line2: '' });
     if (out.length >= count) break;
@@ -248,7 +274,9 @@ function jigAddress(base, count, opts = {}) {
   }
   if (!p.suffix) warnings.push('No street type (St, Ave, Rd...) was recognized, so the street type was not varied.');
 
-  const variants = p.isMultiUnit ? generateWithApartment(p, count) : generateNoApartment(p, count, rng);
+  // opts.exclude(line1) -> true for a line 1 that must not be generated (a jig used on an earlier export)
+  const exclude = typeof opts.exclude === 'function' ? opts.exclude : () => false;
+  const variants = p.isMultiUnit ? generateWithApartment(p, count, exclude) : generateNoApartment(p, count, rng, exclude);
   if (variants.length < count) {
     warnings.push(`Only ${variants.length} unique variation${variants.length === 1 ? '' : 's'} exist for this address (requested ${count}).`);
   }
@@ -257,6 +285,9 @@ function jigAddress(base, count, opts = {}) {
     : 'No apartment was found, so each profile gets a made-up unit (like "APT 8B") at the end of line 1. Line 2 is empty.');
   return { variants, mode, warnings };
 }
+
+// How a used jig is recognised: the exact line 1 (the generator treats "St" and "St." as different variants) plus the ZIP.
+const jigKey = (line1, zip) => `${String(line1 || '').trim().replace(/\s+/g, ' ')}|${String(zip || '').trim().slice(0, 5)}`;
 
 // ---------------------------------------------------------------- phone and name jigs
 
@@ -309,6 +340,6 @@ function jigName(firstName, lastName, rng = Math.random) {
 }
 
 module.exports = {
-  jigAddress, jigPhone, jigName, parseAddress, extractUnitCore, getUnitValueVariants, levenshtein,
+  jigAddress, jigKey, jigPhone, jigName, parseAddress, extractUnitCore, getUnitValueVariants, levenshtein,
   AREA_CODES, SUFFIX_VARIANTS, DESIGNATOR_LIST, PRIMARY_DESIGNATORS, EXTENDED_DESIGNATORS, MODES, mulberry32,
 };

@@ -9,6 +9,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { lookupState, US_STATES, compareProfiles, sortProfiles } = require('./converter');
 const editor = require('./editor');
+const { jigKey } = require('./jig');
 
 const uuid = () => crypto.randomUUID();
 const str = (v) => (v === undefined || v === null ? '' : String(v)).trim();
@@ -89,7 +90,7 @@ class VaultStore {
   constructor(file, cryptoApi) {
     this.file = file;
     this.crypto = cryptoApi || null;
-    this.data = { addresses: [], cards: [], groups: [], accounts: [], domains: [], imports: [] };
+    this.data = { addresses: [], cards: [], groups: [], accounts: [], domains: [], imports: [], usedJigs: [] };
     this.loadError = null;
     this._load();
   }
@@ -119,6 +120,7 @@ class VaultStore {
         accounts: Array.isArray(data.accounts) ? data.accounts : [],
         domains: Array.isArray(data.domains) ? data.domains : [],
         imports: Array.isArray(data.imports) ? data.imports : [],
+        usedJigs: Array.isArray(data.usedJigs) ? data.usedJigs : [],
       };
     } catch (e) {
       // Keep the unreadable file instead of overwriting it.
@@ -145,6 +147,7 @@ class VaultStore {
       addresses: this.data.addresses.map((a) => ({ ...a })),
       groups: this.data.groups.map((g) => JSON.parse(JSON.stringify(g))),
       domains: this.data.domains.map((d) => ({ ...d })),
+      usedJigs: this.data.usedJigs.map((j) => ({ ...j })),
       // imported profile files (card numbers and CVVs stay in this module)
       imports: this.data.imports.map((rec) => {
         const a = editor.analyze(rec.profiles);
@@ -157,7 +160,7 @@ class VaultStore {
         };
       }),
       // account passwords never leave this module
-      accounts: this.data.accounts.map((a) => ({ id: a.id, retailer: a.retailer, email: a.email, createdAt: a.createdAt })),
+      accounts: this.data.accounts.map((a) => ({ id: a.id, retailer: a.retailer, email: a.email, createdAt: a.createdAt, used: !!a.used, usedIn: a.usedIn || null })),
       cards: this.data.cards.map((c) => ({
         id: c.id,
         brand: c.brand,
@@ -311,6 +314,82 @@ class VaultStore {
     return { ok: true };
   }
 
+  // ---- used address jigs
+  // Every address variation that went out in an export is remembered, so the Builder never generates it again.
+  // Re-adding one (or all) from the Vault makes it available to the Builder again.
+  // Used per retailer: for a retailer, the jigs used on that retailer plus the ones with no retailer set (those count
+  // everywhere). With no retailer given, every used jig counts.
+  usedJigKeys(site) {
+    const s = str(site);
+    return new Set(this.data.usedJigs.filter((j) => !s || !j.site || j.site === s).map((j) => j.key));
+  }
+
+  listUsedJigs() {
+    return this.data.usedJigs.map((j) => ({ ...j }));
+  }
+
+  recordJigs(profiles, info) {
+    const site = str(info && info.site);
+    const have = new Set(this.data.usedJigs.map((j) => `${j.key}|${j.site || ''}`)); // the same address on another retailer is a separate entry
+    let added = 0;
+    (profiles || []).forEach((p) => {
+      const a = p.address || {};
+      // the whole street line as a retailer sees it: line 1, plus line 2 when a profile has one (Builder jigs have none)
+      const line = [a.line1, a.line2].map(str).filter(Boolean).join(' ');
+      const key = jigKey(line, a.zip);
+      if (!line || have.has(`${key}|${site}`)) return;
+      have.add(`${key}|${site}`);
+      this.data.usedJigs.push({
+        id: uuid(), key, line1: line, city: str(a.city), state: str(a.state && (a.state.shortCode || a.state)), zip: str(a.zip),
+        batch: str(info && info.batch), site, format: str(info && info.format), source: str(info && info.source), importId: str(info && info.importId),
+        date: (info && info.date) || new Date().toISOString(),
+      });
+      added++;
+    });
+    if (added) this._save();
+    return added;
+  }
+
+  // Change the retailer of an Editor file, and of the jigs that came in with it when it was imported.
+  // Rename an imported or built file (the label shown in the Editor; also the batch name on its Used Jigs entries).
+  renameImport(id, name) {
+    const rec = this.data.imports.find((r) => r.id === str(id));
+    if (!rec) return fail('Imported file not found.');
+    const n = str(name).trim().slice(0, 60);
+    if (!n) return fail('Enter a name.');
+    rec.name = n;
+    this.data.usedJigs.forEach((j) => { if (j.importId === rec.id) j.batch = n; });
+    this._save();
+    return { ok: true };
+  }
+
+  setImportSite(id, site) {
+    const rec = this.data.imports.find((r) => r.id === str(id));
+    if (!rec) return fail('Imported file not found.');
+    const s = str(site);
+    rec.site = s;
+    let updated = 0;
+    this.data.usedJigs.forEach((j) => { if (j.importId === rec.id) { j.site = s; updated++; } });
+    const seen = new Set(); // two entries for the same address and retailer collapse into one
+    this.data.usedJigs = this.data.usedJigs.filter((j) => { const k = `${j.key}|${j.site || ''}`; if (seen.has(k)) return false; seen.add(k); return true; });
+    this._save();
+    return { ok: true, updated };
+  }
+
+  removeJig(id) {
+    const n = this.data.usedJigs.length;
+    this.data.usedJigs = this.data.usedJigs.filter((j) => j.id !== str(id));
+    if (this.data.usedJigs.length === n) return fail('That jig is not in the list.');
+    this._save();
+    return { ok: true };
+  }
+
+  clearJigs() {
+    this.data.usedJigs = [];
+    this._save();
+    return { ok: true };
+  }
+
   // ---- retailer accounts (email + password)
   _checkAccount(retailer, email, password) {
     if (!RETAILERS.includes(retailer)) return fail('Pick a retailer.');
@@ -357,6 +436,29 @@ class VaultStore {
     if (this.data.accounts.length === n) return fail('Account not found.');
     this._save();
     return { ok: true };
+  }
+
+  // Accounts used as the emails of a built batch are marked "in use" (like cards), so the next build only offers fresh ones.
+  markAccountsUsed(ids, info) {
+    const set = new Set((ids || []).map(str));
+    this.data.accounts.forEach((a) => { if (set.has(a.id)) { a.used = true; a.usedIn = { ...info }; } });
+    this._save();
+  }
+
+  setAccountUsed(id, used) {
+    const a = this.data.accounts.find((x) => x.id === str(id));
+    if (!a) return fail('Account not found.');
+    a.used = !!used;
+    if (!a.used) a.usedIn = null;
+    else if (!a.usedIn) a.usedIn = { batch: 'Marked manually', site: a.retailer, date: new Date().toISOString() };
+    this._save();
+    return { ok: true };
+  }
+
+  // Every account, or one retailer's, in vault order (main process only; used by the account export).
+  listAccounts(retailer) {
+    const r = str(retailer);
+    return this.data.accounts.filter((a) => !r || a.retailer === r);
   }
 
   // Accounts for the given ids, in vault order (main process only).
@@ -490,7 +592,7 @@ class VaultStore {
     const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
     const s = (x) => typeof x === 'string';
     const out = {};
-    for (const key of ['addresses', 'cards', 'groups', 'accounts', 'domains', 'imports']) {
+    for (const key of ['addresses', 'cards', 'groups', 'accounts', 'domains', 'imports', 'usedJigs']) {
       const list = raw[key] === undefined ? [] : raw[key];
       if (!Array.isArray(list)) return bad(`${key} is not a list`);
       out[key] = list;
@@ -500,6 +602,7 @@ class VaultStore {
     if (!out.domains.every((d) => isObj(d) && s(d.id) && s(d.domain))) return bad('a domain is incomplete');
     if (!out.accounts.every((a) => isObj(a) && s(a.id) && s(a.email) && s(a.password) && s(a.retailer))) return bad('an account is incomplete');
     if (!out.groups.every((g) => isObj(g) && s(g.id) && s(g.name) && Array.isArray(g.profiles) && Array.isArray(g.formats))) return bad('a saved group is incomplete');
+    if (!out.usedJigs.every((j) => isObj(j) && s(j.id) && s(j.line1) && s(j.key))) return bad('a used address jig is incomplete');
     const profileOk = (p) => isObj(p) && s(p.id) && isObj(p.address) && isObj(p.address.state) && isObj(p.orig) && isObj(p.card) && s(p.card.number);
     if (!out.imports.every((r) => isObj(r) && s(r.id) && s(r.name) && Array.isArray(r.profiles) && r.profiles.every(profileOk))) return bad('an Editor file is incomplete');
     return { ok: true, data: JSON.parse(JSON.stringify(out)) };
@@ -532,7 +635,7 @@ class VaultStore {
 
   // Erase everything, including the safety copies a restore left behind.
   wipe() {
-    this.data = { addresses: [], cards: [], groups: [], accounts: [], domains: [], imports: [] };
+    this.data = { addresses: [], cards: [], groups: [], accounts: [], domains: [], imports: [], usedJigs: [] };
     this.loadError = null;
     this._save();
     this._safetyCopies().forEach((f) => { try { fs.unlinkSync(f); } catch (e) { /* ignore */ } });

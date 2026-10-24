@@ -3,7 +3,7 @@
 // numbers stay out of the window; the window only gets masked preview rows.
 
 const { FIRST_NAMES, MALE_FIRST_NAMES, FEMALE_FIRST_NAMES, LAST_NAMES, pickUnique } = require('./names');
-const { jigAddress, jigPhone, jigName, AREA_CODES } = require('./jig');
+const { jigAddress, jigKey, jigPhone, jigName, parseAddress, AREA_CODES } = require('./jig');
 const { sortProfiles } = require('./converter');
 
 const SITES = ['target', 'walmart', 'pokemoncenter', 'other'];
@@ -49,6 +49,9 @@ function buildDraft(vault, raw, rng = Math.random) {
   if (emailStyle === 'accounts') {
     accounts = vault.getAccounts(Array.isArray(o.accountIds) ? o.accountIds.map(String) : []);
     if (site && accounts.some((a) => a.retailer !== site)) errors.push('Some selected accounts belong to a different retailer than the site you picked.');
+    if (Number.isInteger(count) && accounts.length >= count && accounts.slice(0, count).some((a) => a.used)) {
+      warnings.push('Some of the accounts being used are already marked in use.');
+    }
     if (Number.isInteger(count) && accounts.length < count) {
       errors.push(`You selected ${accounts.length} account${accounts.length === 1 ? '' : 's'} but need ${count}. Add more accounts in the Vault or select more here.`);
     }
@@ -88,10 +91,22 @@ function buildDraft(vault, raw, rng = Math.random) {
   const usedPicked = cards.slice(0, count).filter((c) => c.used).length;
   if (usedPicked) warnings.push(`${usedPicked} of the cards being used ${usedPicked === 1 ? 'is' : 'are'} already marked in use.`);
 
-  const jig = jigAddress({ line1: address.line1, line2: address.line2 }, count, { rng, site });
-  warnings.push(...jig.warnings);
+  // Address variations that went out in an earlier export are never generated again (Vault > Used Jigs to re-add them).
+  const usedKeys = vault.usedJigKeys(site); // jigs used on this retailer, or with no retailer set
+  const jig = jigAddress({ line1: address.line1, line2: address.line2 }, count, { rng, site, exclude: (l1) => usedKeys.has(jigKey(l1, address.zip)) });
+  const parsed = parseAddress({ line1: address.line1, line2: address.line2 });
+  const zip5 = String(address.zip || '').slice(0, 5);
+  const usedHere = parsed ? vault.listUsedJigs().filter((j) => (!j.site || j.site === site) && String(j.zip).slice(0, 5) === zip5 && j.line1.toLowerCase().startsWith(parsed.baseStreet.toLowerCase())).length : 0;
+  if (usedHere) warnings.push(`${usedHere} address variation${usedHere === 1 ? '' : 's'} for this address ${usedHere === 1 ? 'was' : 'were'} used in earlier exports and ${usedHere === 1 ? 'is' : 'are'} skipped (see Vault > Used Jigs).`);
+  warnings.push(...jig.warnings.filter((w) => !/^Only \d+ unique variation/.test(w) || !usedHere)); // the error below explains a shortage
   if (jig.variants.length < count) {
-    return { ok: false, errors: [jig.variants.length ? `Only ${jig.variants.length} unique address variations exist for this address, but ${count} profiles were requested. Generate fewer profiles or add another address to the vault.` : jig.warnings[0]], warnings: jig.warnings };
+    if (!parsed) return { ok: false, errors: [jig.warnings[0]], warnings: jig.warnings };
+    const left = jig.variants.length;
+    return {
+      ok: false,
+      errors: [`Only ${left} unused address variation${left === 1 ? '' : 's'} ${left === 1 ? 'is' : 'are'} left for this address, but ${count} profiles were requested.${usedHere ? ` ${usedHere} ${usedHere === 1 ? 'is' : 'are'} already used: re-add ${usedHere === 1 ? 'it' : 'them'} in Vault > Used Jigs to use ${usedHere === 1 ? 'it' : 'them'} again.` : ''} Generate fewer profiles or add another address to the vault.`],
+      warnings: jig.warnings,
+    };
   }
 
   const firsts = firstMode === 'custom' ? Array(count).fill(firstName) : pickUnique(firstMode === 'male' ? MALE_FIRST_NAMES : firstMode === 'female' ? FEMALE_FIRST_NAMES : FIRST_NAMES, count, rng);
@@ -138,6 +153,7 @@ function buildDraft(vault, raw, rng = Math.random) {
     draft: {
       profiles,
       cardIds: profiles.map((p) => p.card.id),
+      accountIds: emailStyle === 'accounts' ? accounts.slice(0, count).map((a) => a.id) : [], // the accounts whose emails are on the profiles
       opts: { site, prefix, groupName, markUsed: o.markUsed !== false },
       marked: false,
     },

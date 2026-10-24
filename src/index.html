@@ -122,6 +122,13 @@
     button.launch.icon { padding: 8px 12px; line-height: 1; }
     dialog { background: var(--dialog-bg, var(--panel)); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; width: min(560px, 92vw); }
     dialog::backdrop { background: rgba(5, 5, 14, .7); }
+    #confirmDlg { width: min(440px, 92vw); }
+    #acctExpDlg { width: min(440px, 92vw); }
+    button.smallbtn { padding: 3px 10px; font-size: 12px; border-radius: 8px; }
+    #renDlg { width: min(420px, 92vw); }
+    #profDlg { width: min(560px, 94vw); }
+    .pe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .pe-grid .pe-wide { grid-column: 1 / -1; }
     dialog h2 { margin: 0 0 6px; font-size: 16px; }
     .approw { padding: 12px 0; border-top: 1px solid var(--line); }
     .approw .apath { color: var(--muted); font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; margin: 4px 0 8px; }
@@ -260,13 +267,15 @@
     .pillbtn:hover .now { display: none; }
     .pillbtn:hover .next { display: inline; }
     /* Builder: available cards in 3 columns, about 5 rows tall, scrolling after that */
-    #bCardList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; align-content: start; max-height: 286px; }
-    #bCardList > li { margin: 0; }
-    #bCardList > li:not(.pickrow) { grid-column: 1 / -1; }
-    #bCardList li.pickrow { flex-wrap: nowrap; cursor: pointer; padding: 8px 10px; }
-    #bCardList li.pickrow .main { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #bCardList li.pickrow.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 10%, var(--inset)); }
-    @media (max-width: 900px) { #bCardList { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    #bCardList, #bAcctList { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 8px; align-content: start; max-height: 286px; }
+    #bCardList > li, #bAcctList > li { margin: 0; }
+    #bCardList > li:not(.pickrow), #bAcctList > li:not(.pickrow) { grid-column: 1 / -1; }
+    #bCardList li.pickrow, #bAcctList li.pickrow { flex-wrap: nowrap; cursor: pointer; padding: 8px 10px; }
+    #bCardList li.pickrow .main, #bAcctList li.pickrow .main { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #bCardList li.pickrow.on, #bAcctList li.pickrow.on { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 10%, var(--inset)); }
+    @media (max-width: 900px) { #bCardList, #bAcctList { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .exportrow { display: flex; align-items: center; gap: 10px; margin: -4px 0 12px; }
+    .exportrow .plabel { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
     .listhead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
     .listhead h2 { margin: 0 !important; }
     .split .list .listhead { margin-bottom: 14px; }
@@ -330,6 +339,7 @@
     .items li .main { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
     .items li .acts { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
     .items li .main b { font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+    #jigList li .main b { white-space: normal; overflow-wrap: anywhere; }
     .items li button { white-space: nowrap; }
     .items li .meta { color: var(--muted); font-size: 12px; }
     .pill { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
@@ -417,6 +427,10 @@
 
     /* settings dialog */
     dialog { max-height: 88vh; overflow: auto; }
+    .dlghead { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: -22px; margin: -22px -24px 0; padding: 18px 18px 8px 24px; background: var(--dialog-bg, var(--panel)); z-index: 2; }
+    .dlghead h2 { margin: 0; }
+    button.dlgx { background: transparent; box-shadow: none; border: 0; color: var(--muted); width: 32px; height: 32px; padding: 0; border-radius: 8px; font-size: 16px; line-height: 1; }
+    button.dlgx:hover { background: var(--hover); color: var(--text); filter: none; }
     .setsec { padding: 14px 0 4px; border-top: 1px solid var(--line); margin-top: 12px; }
     .setsec h3 { margin: 0 0 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--head); }
     .setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0; }
@@ -514,11 +528,11 @@
   <div id="tabVault">
 
       <div class="panel vaultcard">
-      <div class="vrail" id="vaultSubnav" role="tablist" aria-label="Vault sections"><h3>Vault</h3><button class="vcat active" type="button" data-vtab="addresses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span>Addresses</span></button><button class="vcat" type="button" data-vtab="cards"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/><path d="M6.5 15h3"/></svg><span>Credit Cards</span></button><button class="vcat" type="button" data-vtab="domains"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M15.5 12v1.3a2.7 2.7 0 0 0 5.4 0V12a8.9 8.9 0 1 0-3.5 7.1"/></svg><span>Catchalls</span></button><button class="vcat" type="button" data-vtab="logins"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg><span>Accounts</span></button></div>
+      <div class="vrail" id="vaultSubnav" role="tablist" aria-label="Vault sections"><h3>Vault</h3><button class="vcat active" type="button" data-vtab="addresses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span>Addresses</span></button><button class="vcat" type="button" data-vtab="cards"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/><path d="M6.5 15h3"/></svg><span>Credit Cards</span></button><button class="vcat" type="button" data-vtab="domains"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M15.5 12v1.3a2.7 2.7 0 0 0 5.4 0V12a8.9 8.9 0 1 0-3.5 7.1"/></svg><span>Catchalls</span></button><button class="vcat" type="button" data-vtab="logins"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg><span>Accounts</span></button><button class="vcat" type="button" data-vtab="jigs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg><span>Used Jigs</span></button></div>
       <div class="vbody">
       <div class="split" id="vpAddresses">
         <div class="list">
-          <div class="listhead"><h2>Addresses</h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllAddr">Delete all</button></div>
+          <div class="listhead"><h2>Addresses <span class="count" id="addrCount"></span></h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllAddr">Delete all</button></div>
           <ul class="items" id="addrList"></ul>
         </div>
         <div class="form">
@@ -537,7 +551,7 @@
 
       <div class="split" id="vpCards" hidden>
         <div class="list">
-          <div class="listhead"><h2>Credit cards</h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllCards">Delete all</button></div>
+          <div class="listhead"><h2>Credit cards <span class="count" id="cardCount"></span></h2><span class="grow"></span><select id="cardFilter" class="sortsel" aria-label="Show cards"><option value="free">Available</option><option value="used">In use</option><option value="all">All</option></select><button type="button" class="linkbtn dangerlink" id="delAllCards">Delete all</button></div>
           <ul class="items" id="cardList"></ul>
         </div>
         <div class="form">
@@ -564,7 +578,7 @@
 
       <div class="split" id="vpDomains" hidden>
         <div class="list">
-          <div class="listhead"><h2>Catch-all domains</h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllDom">Delete all</button></div>
+          <div class="listhead"><h2>Catch-all domains <span class="count" id="domCount"></span></h2><span class="grow"></span><button type="button" class="linkbtn dangerlink" id="delAllDom">Delete all</button></div>
           <ul class="items" id="domList"></ul>
         </div>
         <div class="form">
@@ -578,7 +592,7 @@
 
       <div class="split" id="vpLogins" hidden>
         <div class="list">
-          <div class="listhead"><h2>Accounts</h2><span class="grow"></span><select id="acctSort" class="sortsel" aria-label="Sort accounts"><option value="date">Date added</option><option value="alpha">A–Z</option></select><button type="button" class="linkbtn dangerlink" id="delAllAcct">Delete all</button></div>
+          <div class="listhead"><h2>Accounts <span class="count" id="acctCount"></span></h2><span class="grow"></span><select id="acctFilter" class="sortsel" aria-label="Show accounts"><option value="free">Available</option><option value="used">In use</option><option value="all">All</option></select><button type="button" class="sec smallbtn" id="acctExport">Export…</button><button type="button" class="sec smallbtn" id="acctMore" aria-label="More options" title="Sort and delete options">⋯</button></div>
           <ul class="items" id="acctList"></ul>
         </div>
         <div class="form">
@@ -600,6 +614,18 @@
             <textarea id="aBulk" class="sxin" rows="5" placeholder="email:password&#10;(one account per line, uses the retailer chosen above)"></textarea>
             <button id="vBulkAcct" class="add" type="button">Import accounts</button>
           </details>
+        </div>
+      </div>
+      <div class="split" id="vpJigs" hidden>
+        <div class="list">
+          <div class="listhead"><h2>Used jigs <span class="count" id="jigCount"></span></h2><span class="grow"></span><select id="jigSort" class="sortsel" aria-label="Sort used jigs"><option value="num">Numerical</option><option value="date">Date added</option></select><button type="button" class="linkbtn" id="jigReaddAll">Re-add all</button></div>
+          <ul class="items" id="jigList"></ul>
+        </div>
+        <div class="form">
+          <h3>About used jigs</h3>
+          <p class="hint" style="margin-top: 0">Every address variation that goes out in a Builder export (Hayha, Polar or CSV), goes out in an Editor export, or comes in with a file imported into the Editor is remembered here. The Builder and the Editor's Jig address never pick it again on the same retailer (a jig with no retailer set is skipped everywhere). Re-add one to allow it again, for example if it was never actually used.</p>
+          <p class="hint">The Builder only records its own exports when "Mark … as in use after export" is ticked. Imports and Editor exports are always recorded.</p>
+          <label class="f" style="margin-top: 14px">Search<input id="jigSearch" autocomplete="off" placeholder="Address, batch or site" /></label>
         </div>
       </div>
       <div class="msg" id="vMsg"></div>
@@ -668,7 +694,7 @@
         <p class="hint" id="bEmailHint" hidden></p>
         <div id="bAcctBox" hidden>
           <div class="pickhead">
-            <h3>Accounts</h3>
+            <h3>Available Accounts</h3>
             <span class="count" id="bAcctSummary"></span>
             <span class="grow"></span>
             <button type="button" class="linkbtn" id="bAcctAll">Select all</button>
@@ -689,7 +715,7 @@
           <button type="button" class="linkbtn" id="bPickNone">Select none</button>
         </div>
         <ul class="items" id="bCardList"></ul>
-        <label class="chk"><input type="checkbox" id="bMark" checked /> Mark the cards used as “in use” after export</label>
+        <label class="chk"><input type="checkbox" id="bMark" checked /> Mark the cards, accounts and address jigs used as “in use” after export</label>
 
         <button id="bGenerate" type="button">Generate profiles</button>
       </div>
@@ -724,6 +750,16 @@
           </div>
           <button id="edImportBtn" type="button">Import files</button>
         </div>
+        <div class="importrow" style="margin-top: 12px">
+          <label class="f" style="width: min(420px, 100%)">Mark imported profiles as used on
+            <select id="edSite">
+              <option value="">Not set (skip these addresses on every retailer)</option>
+              <option value="target">Target</option>
+              <option value="walmart">Walmart</option>
+              <option value="pokemoncenter">Pokémon Center</option>
+            </select>
+          </label>
+        </div>
         <input id="edFile" type="file" accept=".hayha,.json" multiple hidden />
         <ul class="notes" id="edNotes"></ul>
         <div class="msg" id="edMsg"></div>
@@ -742,7 +778,7 @@
 </main>
 
 <dialog id="settingsDlg">
-  <h2>Settings</h2>
+  <div class="dlghead"><h2>Settings</h2><button type="button" class="dlgx" id="appsClose" aria-label="Close settings" title="Close">✕</button></div>
 
   <div class="setsec">
     <h3>Streamer Mode (Privacy Filter)</h3>
@@ -793,7 +829,6 @@
     </div>
   </div>
 
-  <div class="bar" style="margin: 14px 0 0; justify-content: flex-end"><button type="button" class="sec" id="appsClose">Close</button></div>
 </dialog>
 <dialog id="dataDlg">
   <h2 id="dataTitle">Backup</h2>
@@ -811,6 +846,46 @@
   <label class="f" style="margin-top: 12px">Save as a new file (optional)<input id="mergeName" maxlength="60" placeholder="Leave blank to add them into this file" autocomplete="off" /></label>
   <div class="msg" id="mergeMsg"></div>
   <div class="bar" style="margin: 10px 0 0; justify-content: flex-end"><button type="button" class="sec" id="mergeCancel">Cancel</button><button type="button" id="mergeGo">Merge</button></div>
+</dialog>
+<dialog id="profDlg">
+  <h2 id="profTitle">Edit profile</h2>
+  <div class="pe-grid">
+    <label class="f pe-wide">Profile name<input id="peName" autocomplete="off" /></label>
+    <label class="f">First name<input id="peFirst" autocomplete="off" /></label>
+    <label class="f">Last name<input id="peLast" autocomplete="off" /></label>
+    <label class="f">Email<input id="peEmail" autocomplete="off" /></label>
+    <label class="f">Phone<input id="pePhone" autocomplete="off" /></label>
+    <label class="f pe-wide">Address line 1<input id="peLine1" autocomplete="off" /></label>
+    <label class="f pe-wide">Address line 2<input id="peLine2" autocomplete="off" /></label>
+    <label class="f">City<input id="peCity" autocomplete="off" /></label>
+    <label class="f">State<select id="peState"></select></label>
+    <label class="f">Zip<input id="peZip" autocomplete="off" /></label>
+    <label class="f">Country<input id="peCountry" autocomplete="off" /></label>
+    <label class="f pe-wide">Name on card<input id="peHolder" autocomplete="off" /></label>
+    <label class="f pe-wide">Card number<input id="peNumber" autocomplete="off" inputmode="numeric" /></label>
+    <label class="f">Exp month<input id="peMonth" autocomplete="off" inputmode="numeric" maxlength="2" placeholder="MM" /></label>
+    <label class="f">Exp year<input id="peYear" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="YY" /></label>
+    <label class="f">CVV<input id="peCvv" autocomplete="off" inputmode="numeric" maxlength="4" /></label>
+  </div>
+  <p class="hint" id="peHint" style="margin: 6px 0 0"></p>
+  <div class="msg" id="peMsg"></div>
+  <div class="bar" style="margin: 10px 0 0; justify-content: flex-end"><button type="button" class="sec" id="peCancel">Cancel</button><button type="button" id="peSave">Save changes</button></div>
+</dialog>
+<dialog id="acctExpDlg">
+  <h2>Export accounts</h2>
+  <p class="hint" id="acctExpNote" style="margin-top: 4px"></p>
+  <label class="f" style="margin-top: 12px">Retailer<select id="acctExpRetailer"><option value="">All retailers</option><option value="target">Target</option><option value="walmart">Walmart</option><option value="other">Other</option></select></label>
+  <div class="bar" style="margin: 14px 0 0; justify-content: flex-end"><button type="button" class="sec" id="acctExpClose">Cancel</button><button type="button" id="acctExpHayha">Export Hayha</button><button type="button" id="acctExpPolar">Export Polar</button></div>
+</dialog>
+<dialog id="renDlg">
+  <h2>Rename file</h2>
+  <label class="f" style="margin-top: 12px">Name<input id="renName" maxlength="60" autocomplete="off" /></label>
+  <div class="msg" id="renMsg"></div>
+  <div class="bar" style="margin: 10px 0 0; justify-content: flex-end"><button type="button" class="sec" id="renCancel">Cancel</button><button type="button" id="renSave">Save</button></div>
+</dialog>
+<dialog id="confirmDlg">
+  <p id="confirmText" style="margin: 0 0 4px; white-space: pre-line"></p>
+  <div class="bar" style="margin: 16px 0 0; justify-content: flex-end"><button type="button" class="sec" id="confirmCancel">Cancel</button><button type="button" class="warnbtn" id="confirmOk">Delete</button></div>
 </dialog>
 <div id="toast" class="toast" hidden></div>
 <script src="privacy.js"></script>

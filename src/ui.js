@@ -81,7 +81,7 @@
   document.querySelectorAll('[data-nav]').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.nav)));
 
   // Vault categories: one at a time, so the Vault never needs a long scrolling page.
-  const VAULT_PANELS = { addresses: 'vpAddresses', cards: 'vpCards', domains: 'vpDomains', logins: 'vpLogins' };
+  const VAULT_PANELS = { addresses: 'vpAddresses', cards: 'vpCards', domains: 'vpDomains', logins: 'vpLogins', jigs: 'vpJigs' };
   function showVaultTab(name) {
     document.querySelectorAll('[data-vtab]').forEach((b) => b.classList.toggle('active', b.dataset.vtab === name));
     for (const [key, id] of Object.entries(VAULT_PANELS)) $(id).hidden = key !== name;
@@ -89,7 +89,7 @@
   document.querySelectorAll('[data-vtab]').forEach((b) => b.addEventListener('click', () => showVaultTab(b.dataset.vtab)));
 
   // ------------------------------------------------------------------ state
-  let snap = { addresses: [], cards: [], groups: [], accounts: [], domains: [], imports: [], encrypted: true, loadError: null };
+  let snap = { addresses: [], cards: [], groups: [], accounts: [], domains: [], imports: [], usedJigs: [], encrypted: true, loadError: null };
   let openGroup = null;
   const picked = new Set();
   const pickedAcct = new Set();
@@ -110,11 +110,13 @@
     const ids = new Set(s.cards.map((c) => c.id));
     for (const id of [...picked]) if (!ids.has(id)) picked.delete(id);
     s.cards.forEach((c) => { if (c.used) picked.delete(c.id); });
+    (s.accounts || []).forEach((a) => { if (a.used) pickedAcct.delete(a.id); }); // in-use accounts are not offered to the Builder
     const aids = new Set((s.accounts || []).map((a) => a.id));
     for (const id of [...pickedAcct]) if (!aids.has(id)) pickedAcct.delete(id);
     renderVault();
     renderDomains();
     renderAccounts();
+    renderJigs();
     renderBuilderPickers();
     renderGroups();
     renderEditor();
@@ -138,8 +140,9 @@
   const cardLabelText = (c) => (c.nickname ? `${Privacy.text('name', c.nickname)} (${cardMaskText(c)})` : cardMaskText(c));
   const cardExpNode = (c) => ['exp ', sx('exp', `${c.expMonth}/${String(c.expYear).slice(-2)}`), c.holder ? [' · ', sx('name', c.holder)] : ''];
   // Cards grouped under one date header per day they were added (newest day first), no date on each card.
+  const useFilter = (v) => (x) => v === 'all' || (v === 'used' ? !!x.used : !x.used); // 'free' (default), 'used' or 'all'
   function eachCardByDay(fn) {
-    groupByDay(snap.cards, (c) => c.createdAt).forEach((day) => fn(day.label, day.items));
+    groupByDay(snap.cards.filter(useFilter($('cardFilter').value)), (c) => c.createdAt).forEach((day) => fn(day.label, day.items));
   }
   function usedTitle(c) {
     if (!c.used || !c.usedIn) return '';
@@ -163,7 +166,7 @@
           el('button', {
             class: 'sec danger', type: 'button', text: 'Delete',
             onclick: async () => {
-              if (!confirm('Delete this address?')) return;
+              if (!(await askConfirm('Delete this address?'))) return;
               if (editingId === a.id) stopEdit();
               handleVault(await api.vaultDeleteAddress(a.id), 'vMsg');
             },
@@ -173,6 +176,8 @@
     if (!snap.addresses.length) al.append(el('li', null, el('div', { class: 'main meta', text: 'No addresses yet.' })));
 
     const free = snap.cards.filter((c) => !c.used).length;
+    $('addrCount').textContent = snap.addresses.length ? `(${snap.addresses.length})` : '';
+    $('cardCount').textContent = snap.cards.length ? `(${snap.cards.filter(useFilter($('cardFilter').value)).length})` : '';
     const cl = $('cardList');
     cl.replaceChildren();
     eachCardByDay((label, cards) => {
@@ -180,6 +185,7 @@
       cards.forEach((c) => cl.append(vaultCardRow(c)));
     });
     if (!snap.cards.length) cl.append(el('li', null, el('div', { class: 'main meta', text: 'No cards yet.' })));
+    else if (!cl.children.length) cl.append(el('li', null, el('div', { class: 'main meta', text: $('cardFilter').value === 'used' ? 'No cards in use.' : 'No available cards. Change the filter to see the rest.' })));
   }
 
   function vaultCardRow(c) {
@@ -202,7 +208,7 @@
           el('button', {
             class: 'sec danger', type: 'button', text: 'Delete',
             onclick: async () => {
-              if (!confirm(`Delete ${cardLabelText(c)}?`)) return;
+              if (!(await askConfirm(`Delete ${cardLabelText(c)}?`))) return;
               handleVault(await api.vaultDeleteCard(c.id), 'vMsg');
             },
           }))));
@@ -210,13 +216,14 @@
 
   function renderDomains() {
     const l = $('domList');
+    $('domCount').textContent = snap.domains.length ? `(${snap.domains.length})` : '';
     l.replaceChildren();
     snap.domains.forEach((d) => l.append(el('li', { 'data-id': d.id, class: 'sortable', title: 'Drag to reorder' },
       el('div', { class: 'main' }, sx('domain', d.domain)),
       el('div', { class: 'acts' }, el('button', {
         class: 'sec danger', type: 'button', text: 'Delete',
         onclick: async () => {
-          if (!confirm(`Delete ${Privacy.text('domain', d.domain)}?`)) return;
+          if (!(await askConfirm(`Delete ${Privacy.text('domain', d.domain)}?`))) return;
           handleVault(await api.vaultDeleteDomain(d.id), 'vMsg');
         },
       })))));
@@ -227,29 +234,78 @@
   // Accounts grouped under a date header per day they were added.
   function renderAccounts() {
     const l = $('acctList');
+    $('acctCount').textContent = snap.accounts.length ? `(${snap.accounts.filter(useFilter($('acctFilter').value)).length})` : '';
     l.replaceChildren();
     // one section per retailer (Target, Walmart, Other, then any retailer saved earlier), each grouped by day added
     const retailers = [...new Set(snap.accounts.map((a) => a.retailer))]
       .sort((x, y) => (RETAILER_ORDER.indexOf(x) + 1 || 99) - (RETAILER_ORDER.indexOf(y) + 1 || 99));
     retailers.forEach((r) => {
-      const mine = snap.accounts.filter((a) => a.retailer === r);
+      const mine = snap.accounts.filter((a) => a.retailer === r && useFilter($('acctFilter').value)(a));
+      if (!mine.length) return;
       l.append(el('li', { class: 'rethead' }, RETAILER_LABEL[r] || r));
       acctGroups(mine).forEach((day) => {
         if (day.label) l.append(el('li', { class: 'datehead', text: day.label }));
         day.items.forEach((a) => l.append(el('li', null,
           el('div', { class: 'main' }, el('b', null, sx('email', a.email))),
           el('div', { class: 'acts' },
+            (() => {
+              const next = a.used ? 'Mark available' : 'Mark in use';
+              return el('button', {
+                class: 'pill pillbtn ' + (a.used ? 'used' : 'free'), type: 'button',
+                title: `${usedTitle(a) ? usedTitle(a) + '. ' : ''}Click to ${next.toLowerCase()}`,
+                onclick: async () => handleVault(await api.vaultSetAccountUsed(a.id, !a.used), 'vMsg'),
+              }, el('span', { class: 'now', text: a.used ? 'In use' : 'Available' }), el('span', { class: 'next', text: next }));
+            })(),
             el('button', {
               class: 'sec danger', type: 'button', text: 'Delete',
               onclick: async () => {
-                if (!confirm(`Delete ${Privacy.text('email', a.email)}?`)) return;
+                if (!(await askConfirm(`Delete ${Privacy.text('email', a.email)}?`))) return;
                 handleVault(await api.vaultDeleteAccount(a.id), 'vMsg');
               },
             })))));
       });
     });
     if (!snap.accounts.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No accounts yet.' })));
+    else if (!l.children.length) l.append(el('li', null, el('div', { class: 'main meta', text: $('acctFilter').value === 'used' ? 'No accounts in use.' : 'No available accounts. Change the filter to see the rest.' })));
   }
+
+  // Used jigs: address variations that were exported before (the Builder skips them). Re-add = let the Builder use one again.
+  const JIG_FORMAT = { hayha: 'Hayha', polar: 'Polar', csv: 'CSV' };
+  const JIG_SOURCE = { import: 'Imported', editor: 'Editor export' };
+  function renderJigs() {
+    const l = $('jigList');
+    l.replaceChildren();
+    const q = $('jigSearch').value.trim().toLowerCase();
+    const all = snap.usedJigs || [];
+    const shown = all.filter((j) => !q || `${j.line1} ${j.city} ${j.state} ${j.zip} ${j.batch} ${j.site}`.toLowerCase().includes(q));
+    $('jigCount').textContent = all.length ? (q ? `(${shown.length} of ${all.length})` : `(${all.length})`) : '';
+    $('jigReaddAll').disabled = !all.length;
+    // Numerical (default): one list ordered by house number, then street, then unit. Date added: grouped by day.
+    const groups = $('jigSort').value === 'date'
+      ? groupByDay(shown, (j) => j.date)
+      : [{ label: null, items: shown.slice().sort((a, b) => nameCollator.compare(a.line1 || '', b.line1 || '') || nameCollator.compare(String(a.zip || ''), String(b.zip || ''))) }];
+    groups.forEach((day) => {
+      if (day.label) l.append(el('li', { class: 'datehead', text: day.label }));
+      day.items.forEach((j) => l.append(el('li', null,
+        el('div', { class: 'main' },
+          el('b', null, Privacy.group(sx('line1', j.line1), `, ${j.city}, ${j.state} `, sx('zip', j.zip))),
+          el('div', { class: 'meta', text: `${j.batch || 'Batch'}${j.source ? ' · ' + (JIG_SOURCE[j.source] || j.source) : ''}${' · ' + (j.site ? (RETAILER_LABEL[j.site] || j.site) : 'Any retailer')}${j.format ? ' · ' + (JIG_FORMAT[j.format] || j.format) : ''}` })),
+        el('div', { class: 'acts' }, el('button', {
+          class: 'sec', type: 'button', text: 'Re-add', title: 'Let the Builder generate this address again',
+          onclick: async () => handleVault(await api.vaultRemoveJig(j.id), 'vMsg', 'Re-added. The Builder can use that address again.'),
+        })))));
+    });
+    if (!all.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No used jigs yet. Addresses are added here when you export a batch from the Builder.' })));
+    else if (!shown.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'Nothing matches that search.' })));
+  }
+  $('jigSearch').addEventListener('input', renderJigs);
+  $('jigSort').addEventListener('change', renderJigs);
+  $('jigReaddAll').addEventListener('click', async () => {
+    const n = (snap.usedJigs || []).length;
+    if (!n) return;
+    if (!(await askConfirm(`Re-add all ${n} used jig${n === 1 ? '' : 's'}? The Builder will be able to generate those addresses again.`, 'Re-add all'))) return;
+    handleVault(await api.vaultClearJigs(), 'vMsg', `Re-added ${n} jig${n === 1 ? '' : 's'}.`);
+  });
 
   function handleVault(r, msgId, okText) {
     if (r.snapshot) applySnapshot(r.snapshot);
@@ -329,30 +385,54 @@
     if (!bad) $('cBulk').value = '';
   });
 
-  $('acctSort').value = acctSort;
-  $('acctSort').addEventListener('change', () => {
-    acctSort = $('acctSort').value === 'alpha' ? 'alpha' : 'date';
-    try { localStorage.setItem('aioStudio.acctSort', acctSort); } catch (e) { /* ignore */ }
-    renderAccounts();
-    renderBuilderPickers();
+  // Export the accounts that match the Available / In use / All filter (and the retailer picked next to the buttons) as a Hayha or Polar accounts file
+  async function exportAccounts(format) {
+    const r = await api.vaultExportAccounts(format, $('acctExpRetailer').value, $('acctFilter').value);
+    if (r.ok) setMsg('vMsg', `Exported ${r.count} account${r.count === 1 ? '' : 's'} to ${r.filePath}.`, 'ok');
+    else if (!r.canceled) setMsg('vMsg', r.error, 'err');
+  }
+  $('acctExpHayha').addEventListener('click', async () => { await exportAccounts('hayha'); $('acctExpDlg').close(); });
+  $('acctExpPolar').addEventListener('click', async () => { await exportAccounts('polar'); $('acctExpDlg').close(); });
+  $('acctExpClose').addEventListener('click', () => $('acctExpDlg').close());
+  $('acctExport').addEventListener('click', () => {
+    const f = $('acctFilter').value;
+    $('acctExpNote').textContent = `Exports the ${f === 'free' ? 'available' : f === 'used' ? 'in-use' : ''} accounts${f === 'all' ? ' (every account)' : ''} for the retailer you pick. Change the filter above to export a different set.`.replace('  ', ' ');
+    $('acctExpDlg').showModal();
   });
+  // Sort and Delete all live behind one "..." button to keep the header clean.
+  $('acctMore').addEventListener('click', () => {
+    const r = $('acctMore').getBoundingClientRect();
+    const setSort = (v) => () => {
+      acctSort = v;
+      try { localStorage.setItem('aioStudio.acctSort', acctSort); } catch (e) { /* ignore */ }
+      renderAccounts();
+      renderBuilderPickers();
+    };
+    showMenu(r.right - 190, r.bottom + 4, [
+      { label: `${acctSort === 'date' ? '✓ ' : '    '}Sort by date added`, run: setSort('date') },
+      { label: `${acctSort === 'alpha' ? '✓ ' : '    '}Sort A–Z`, run: setSort('alpha') },
+      snap.accounts.length && { label: 'Delete all accounts', danger: true, run: () => deleteAll('accounts', 'accounts', snap.accounts.length) },
+    ]);
+  });
+
+  $('cardFilter').addEventListener('change', () => renderVault());
+  $('acctFilter').addEventListener('change', () => renderAccounts());
 
   // Delete all, one button per Vault section (with a confirmation)
   async function deleteAll(kind, noun, count) {
     if (!count) return;
-    if (!confirm(`Delete all ${count} ${noun} from the Vault? This cannot be undone.`)) return;
+    if (!(await askConfirm(`Delete all ${count} ${noun} from the Vault? This cannot be undone.`))) return;
     if (kind === 'addresses') stopEdit();
     handleVault(await api.vaultDeleteAll(kind), 'vMsg', `Deleted all ${noun}.`);
   }
   $('delAllAddr').addEventListener('click', () => deleteAll('addresses', 'addresses', snap.addresses.length));
   $('delAllCards').addEventListener('click', () => deleteAll('cards', 'cards', snap.cards.length));
   $('delAllDom').addEventListener('click', () => deleteAll('domains', 'catch-all domains', snap.domains.length));
-  $('delAllAcct').addEventListener('click', () => deleteAll('accounts', 'accounts', snap.accounts.length));
   function syncDeleteAll() {
     $('delAllAddr').disabled = !snap.addresses.length;
     $('delAllCards').disabled = !snap.cards.length;
     $('delAllDom').disabled = !snap.domains.length;
-    $('delAllAcct').disabled = !snap.accounts.length;
+    $('acctExport').disabled = !snap.accounts.length;
   }
 
   // ------------------------------------------------------------------ builder
@@ -399,7 +479,7 @@
     h.hidden = style !== 'sequence' && style !== 'accounts';
     if (h.hidden) return;
     if (style === 'accounts') {
-      h.textContent = 'Each profile uses the email of one account you saved in the Vault (for the site you picked), in order, so profiles match accounts you already have. Select the accounts below. You need at least as many as Profiles to generate.';
+      h.textContent = 'Each profile uses the email of one account you saved in the Vault (for the site you picked), in order, so profiles match accounts you already have. Select the accounts below (accounts already used on an earlier batch are hidden). You need at least as many as Profiles to generate.';
       return;
     }
     const prefix = $('bEmailPrefix').value.trim().replace(/@.*$/, '');
@@ -431,7 +511,7 @@
   });
   ['bEmailPrefix', 'bEmailStart', 'bDomain', 'bCount'].forEach((id) => $(id).addEventListener('input', () => { updateEmailHint(); updateAcctSummary(); }));
   $('bAcctAll').addEventListener('click', () => {
-    snap.accounts.filter((a) => a.retailer === $('bSite').value).forEach((a) => pickedAcct.add(a.id));
+    snap.accounts.filter((a) => a.retailer === $('bSite').value && !a.used).forEach((a) => pickedAcct.add(a.id));
     renderBuilderPickers();
   });
   $('bAcctNone').addEventListener('click', () => { pickedAcct.clear(); renderBuilderPickers(); });
@@ -449,18 +529,23 @@
     const site = $('bSite').value;
     const al = $('bAcctList');
     al.replaceChildren();
-    const mine = snap.accounts.filter((a) => a.retailer === site);
+    const ofSite = snap.accounts.filter((a) => a.retailer === site);
+    const mine = ofSite.filter((a) => !a.used); // accounts already used on a built batch are not offered again
     acctGroups(mine).forEach((day) => {
       if (day.label) al.append(el('li', { class: 'datehead', text: day.label }));
       day.items.forEach((a) => {
         const cb = el('input', { type: 'checkbox' });
         cb.checked = pickedAcct.has(a.id);
         cb.addEventListener('change', () => { if (cb.checked) pickedAcct.add(a.id); else pickedAcct.delete(a.id); updateAcctSummary(); });
-        al.append(el('li', null, cb, el('div', { class: 'main' }, el('b', null, sx('email', a.email)))));
+        const row = el('li', { class: 'pickrow' + (cb.checked ? ' on' : '') }, cb, el('div', { class: 'main' }, el('b', null, sx('email', a.email))));
+        cb.addEventListener('change', () => row.classList.toggle('on', cb.checked));
+        row.addEventListener('click', (e) => { if (e.target !== cb) { cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); } }); // the whole row toggles
+        al.append(row);
       });
     });
     if (!site) al.append(el('li', null, el('div', { class: 'main meta', text: 'Select a retailer above to see its accounts.' })));
-    else if (!mine.length) al.append(el('li', null, el('div', { class: 'main meta', text: `No ${RETAILER_LABEL[site] || ''} accounts in the vault yet. Add them in the Vault tab.` })));
+    else if (!ofSite.length) al.append(el('li', null, el('div', { class: 'main meta', text: `No ${RETAILER_LABEL[site] || ''} accounts in the vault yet. Add them in the Vault tab.` })));
+    else if (!mine.length) al.append(el('li', null, el('div', { class: 'main meta', text: `Every ${RETAILER_LABEL[site] || ''} account is marked in use. Add more in the Vault tab, or mark some available again.` })));
     syncForm();
 
     const sel = $('bAddress');
@@ -596,6 +681,8 @@
       const bits = [];
       if (r.saved) bits.push('saved the batch under Saved groups');
       if (r.marked) bits.push(`marked ${r.marked} card${r.marked === 1 ? '' : 's'} as in use`);
+      if (r.markedAccounts) bits.push(`marked ${r.markedAccounts} account${r.markedAccounts === 1 ? '' : 's'} as in use`);
+      if (r.markedJigs) bits.push(`remembered ${r.markedJigs} address jig${r.markedJigs === 1 ? '' : 's'} as used`);
       setMsg('bMsg', `Saved to ${r.filePath}${bits.length ? ' and ' + bits.join(' and ') : ''}.`, 'ok');
     } else if (!r.canceled) {
       setMsg('bMsg', r.error, 'err');
@@ -684,7 +771,7 @@
         class: 'sec danger', type: 'button', text: 'Delete',
         onclick: async (e) => {
           e.stopPropagation();
-          if (!confirm(`Delete the group "${g.name}"? Its cards stay marked as in use.`)) return;
+          if (!(await askConfirm(`Delete the group "${g.name}"? Its cards stay marked as in use.`))) return;
           if (openGroup === g.id) openGroup = null;
           handleVault(await api.vaultDeleteGroup(g.id), 'bMsg');
         },
@@ -733,8 +820,10 @@
   async function importFiles(files) {
     const notes = [];
     let last = null;
+    const results = [];
     for (const f of files) {
-      const r = await api.editorImport(await f.text(), f.name);
+      const r = await api.editorImport(await f.text(), f.name, $('edSite').value);
+      results.push(r);
       if (r.snapshot) applySnapshot(r.snapshot);
       if (!r.ok) { notes.push(`${f.name}: ${r.error}`); continue; }
       last = r;
@@ -745,7 +834,8 @@
       openImport = last.id;
       importFilter.clear();
       renderEditor();
-      setMsg('edMsg', `Imported ${last.count} profile${last.count === 1 ? '' : 's'}.`, 'ok');
+      const jigs = results.reduce((n, x) => n + (x.jigsAdded || 0), 0);
+      setMsg('edMsg', `Imported ${last.count} profile${last.count === 1 ? '' : 's'}.${jigs ? ` ${jigs} address jig${jigs === 1 ? '' : 's'} added to Vault > Used Jigs.` : ''}`, 'ok');
     } else {
       setMsg('edMsg', 'Nothing was imported.', 'err');
     }
@@ -823,6 +913,7 @@
       oncontextmenu: (e) => {
         e.preventDefault();
         showMenu(e.clientX, e.clientY, [
+          { label: 'Edit profile', run: () => openProfileEditor(rec, p) },
           { label: 'Jig address', run: async () => handleEditor(await api.editorJig(rec.id, p.id)) },
           p.changed && { label: 'Reset address', run: async () => handleEditor(await api.editorReset(rec.id, p.id)) },
           { label: 'Delete profile', danger: true, run: async () => handleEditor(await api.editorDeleteProfile(rec.id, p.id), `Deleted ${p.name || 'the profile'}.`) },
@@ -836,6 +927,10 @@
           p.changed && el('button', {
             class: 'sec', type: 'button', text: 'Reset',
             onclick: async () => handleEditor(await api.editorReset(rec.id, p.id)),
+          }),
+          el('button', {
+            class: 'sec', type: 'button', text: 'Edit',
+            onclick: () => openProfileEditor(rec, p),
           }),
           el('button', {
             class: 'sec', type: 'button', text: 'Jig address',
@@ -892,6 +987,69 @@
     return line;
   }
 
+  // ---- Edit one imported profile (every field). Blank card number / CVV keeps the saved one; they never reach this window.
+  let peTarget = null;
+  let peStatesLoaded = false;
+  async function openProfileEditor(rec, p) {
+    if (!peStatesLoaded) {
+      const sel = $('peState');
+      sel.append(el('option', { value: '', text: '-' }));
+      (await api.states()).forEach((st) => sel.append(el('option', { value: st.shortCode, text: `${st.shortCode} - ${st.name}` })));
+      peStatesLoaded = true;
+    }
+    peTarget = { recId: rec.id, id: p.id };
+    const set = (id, v) => { $(id).value = v || ''; };
+    set('peName', p.name); set('peFirst', p.first); set('peLast', p.last); set('peEmail', p.email); set('pePhone', p.phone);
+    set('peLine1', p.address.line1); set('peLine2', p.address.line2); set('peCity', p.address.city);
+    $('peState').value = p.address.state && p.address.state.shortCode || '';
+    set('peZip', p.address.zip); set('peCountry', p.address.country);
+    set('peHolder', p.card.holder); set('peNumber', ''); set('peCvv', '');
+    set('peMonth', p.card.expMonth); set('peYear', p.card.expYear);
+    $('peNumber').placeholder = `${p.card.brand} •••• ${p.card.last4} (leave blank to keep)`;
+    $('peCvv').placeholder = 'Leave blank to keep';
+    $('peHint').textContent = 'Changing the street address makes it the new starting point for Jig address and Reset.';
+    setMsg('peMsg', '', '');
+    $('peMsg').textContent = '';
+    $('profDlg').showModal();
+  }
+  $('peCancel').addEventListener('click', () => $('profDlg').close());
+  $('peSave').addEventListener('click', async () => {
+    if (!peTarget) return;
+    const v = (id) => $(id).value;
+    const fields = {
+      name: v('peName'), first: v('peFirst'), last: v('peLast'), email: v('peEmail'), phone: v('pePhone'),
+      address: { line1: v('peLine1'), line2: v('peLine2'), city: v('peCity'), state: v('peState'), zip: v('peZip'), country: v('peCountry') },
+      card: { holder: v('peHolder'), number: v('peNumber'), expMonth: v('peMonth'), expYear: v('peYear'), cvv: v('peCvv') },
+    };
+    const r = await api.editorUpdateProfile(peTarget.recId, peTarget.id, fields);
+    if (!r.ok) { setMsg('peMsg', r.error, 'err'); return; }
+    $('profDlg').close();
+    peTarget = null;
+    handleEditor(r, 'Profile updated.');
+  });
+
+  // Rename an imported / built file in a small dialog (a dialog keeps typing reliable inside the clickable row).
+  let renId = null;
+  function openRename(rec) {
+    renId = rec.id;
+    $('renName').value = rec.name;
+    setMsg('renMsg', '', '');
+    $('renDlg').showModal();
+    $('renName').focus();
+    $('renName').select();
+  }
+  async function saveRename() {
+    if (!renId) return;
+    const r = await api.editorRename(renId, $('renName').value);
+    if (!r.ok) { setMsg('renMsg', r.error, 'err'); return; }
+    $('renDlg').close();
+    renId = null;
+    handleEditor(r, 'Renamed.');
+  }
+  $('renCancel').addEventListener('click', () => $('renDlg').close());
+  $('renSave').addEventListener('click', saveRename);
+  $('renName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRename(); } });
+
   function handleEditor(r, okText) {
     if (r.snapshot) applySnapshot(r.snapshot);
     setMsg('edMsg', r.ok ? (okText || '') : r.error, r.ok ? 'ok' : 'err');
@@ -929,13 +1087,17 @@
         },
         el('span', { class: 'chev', text: open ? '▾' : '▸' }),
         el('span', { class: 'gname', text: rec.name }),
-        el('span', { class: 'gmeta', text: `${rec.source === 'built' ? `Built${rec.site ? ' for ' + (SITE_LABEL[rec.site] || rec.site) : ''}` : (rec.format === 'hayha' ? 'Hayha' : 'Polar')} · ${rec.count} profile${rec.count === 1 ? '' : 's'}` }),
+        el('span', { class: 'gmeta', text: `${rec.source === 'built' ? `Built${rec.site ? ' for ' + (SITE_LABEL[rec.site] || rec.site) : ''}` : (rec.format === 'hayha' ? 'Hayha' : 'Polar') + (rec.site ? ' · ' + (SITE_LABEL[rec.site] || rec.site) : '')} · ${rec.count} profile${rec.count === 1 ? '' : 's'}` }),
         dupIcons.length ? el('span', { class: 'gicons' }, dupIcons) : el('span', { class: 'gmeta', text: 'no duplicates' }),
+        el('button', {
+          class: 'sec', type: 'button', text: 'Rename',
+          onclick: (e) => { e.stopPropagation(); openRename(rec); },
+        }),
         el('button', {
           class: 'sec danger', type: 'button', text: 'Delete',
           onclick: async (e) => {
             e.stopPropagation();
-            if (!confirm(`Remove "${rec.name}" from the Editor? ${rec.source === 'built' ? 'The saved group and any exported files are not touched.' : 'Your original file is not touched.'}`)) return;
+            if (!(await askConfirm(`Remove "${rec.name}" from the Editor? ${rec.source === 'built' ? 'The saved group and any exported files are not touched.' : 'Your original file is not touched.'}`))) return;
             if (openImport === rec.id) openImport = null;
             handleEditor(await api.editorDelete(rec.id));
           },
@@ -963,6 +1125,7 @@
                 handleEditor(r, r.ok ? `Fixed ${r.fixed} duplicate address${r.fixed === 1 ? '' : 'es'}${r.failed ? `; ${r.failed} could not be fixed (no unused variation left)` : ''}.` : '');
               },
             }),
+            rec.source !== 'built' && siteSelect(rec),
             el('span', { class: 'grow' }),
             el('button', { type: 'button', class: 'sec', text: 'Merge…', title: 'Merge other files or saved groups into this one', onclick: () => openMerge(rec) }),
             el('button', { type: 'button', class: 'sec', text: 'Export Hayha', onclick: () => exportImport(rec.id, 'hayha') }),
@@ -978,6 +1141,20 @@
         list.append(body);
       });
     });
+  }
+
+  // Which retailer an imported file's profiles were used on. Its addresses are skipped for new jigs on that retailer
+  // ("Not set" = skipped on every retailer).
+  function siteSelect(rec) {
+    const sel = el('select', { class: 'sortsel', 'aria-label': 'Retailer these profiles were used on', title: 'The retailer these profiles were used on. Their addresses are skipped for new jigs on that retailer.' },
+      el('option', { value: '', text: 'Retailer: not set' }),
+      el('option', { value: 'target', text: 'Target' }), el('option', { value: 'walmart', text: 'Walmart' }), el('option', { value: 'pokemoncenter', text: 'Pokémon Center' }));
+    sel.value = rec.site || '';
+    sel.addEventListener('change', async () => {
+      const r = await api.editorSetSite(rec.id, sel.value);
+      handleEditor(r, r.ok ? `Marked as ${sel.value ? (SITE_LABEL[sel.value] || sel.value) : 'not set (skipped on every retailer)'}${r.updated ? `; ${r.updated} used jig${r.updated === 1 ? '' : 's'} updated` : ''}.` : '');
+    });
+    return sel;
   }
 
   // ---- merge other Editor files / saved groups into a file (or a new file)
@@ -1036,7 +1213,8 @@
 
   async function exportImport(id, format) {
     const r = await api.editorExport(id, format);
-    if (r.ok) setMsg('edMsg', `Saved to ${r.filePath}.`, 'ok');
+    if (r.snapshot) applySnapshot(r.snapshot);
+    if (r.ok) setMsg('edMsg', `Saved to ${r.filePath}.${r.jigsAdded ? ` ${r.jigsAdded} new address jig${r.jigsAdded === 1 ? '' : 's'} added to Vault > Used Jigs.` : ''}`, 'ok');
     else if (!r.canceled) setMsg('edMsg', r.error, 'err');
   }
 
@@ -1062,6 +1240,7 @@
       importFilter.clear();
       lastRows = null;
       lastWarn = [];
+      $('jigSearch').value = '';
       $('bResult').hidden = true;
       setMsg('bMsg', '');
       setMsg('edMsg', '');
@@ -1076,7 +1255,7 @@
       $('edNotes').replaceChildren(...(r.warnings || []).map((w) => el('li', { text: Privacy.scrub(w) })));
       showTab('editor');
       renderEditor();
-      setMsg('edMsg', `Opened ${r.count} profile${r.count === 1 ? '' : 's'} in the Editor.`, 'ok');
+      setMsg('edMsg', `Opened ${r.count} profile${r.count === 1 ? '' : 's'} in the Editor.${r.jigsAdded ? ` ${r.jigsAdded} address jig${r.jigsAdded === 1 ? '' : 's'} added to Vault > Used Jigs.` : ''}`, 'ok');
     },
   };
 
