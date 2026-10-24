@@ -6,7 +6,9 @@
   "scripts": {
     "start": "electron .",
     "test": "node test/test.js && node test/builder.test.js",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac --x64 --arm64"
   },
   "build": {
     "appId": "com.local.aioconverter",
@@ -23,7 +25,17 @@
       "icon": "build/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.utilities"
     },
     "nsis": {
       "installerIcon": "build/icon.ico",
