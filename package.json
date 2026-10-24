@@ -1,50 +1,34 @@
 {
-  "name": "aio-studio",
-  "version": "2.0.0",
-  "description": "PokeSluts AIO Studio - Vault, Profile Builder, Duplicate Editor, and Hayha/Polar Converter",
-  "author": "PokeSluts",
+  "name": "aio-converter",
+  "version": "1.0.0",
+  "description": "Convert Hayha and Polar AIO profile and account files in both directions",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "test": "node test/test.js && node test/builder.test.js",
-    "dist": "electron-builder --publish never",
-    "dist:win": "electron-builder --win --publish never",
-    "dist:mac": "electron-builder --mac --publish never"
+    "dist": "electron-builder"
   },
   "build": {
-    "appId": "com.pokesluts.aiostudio",
-    "productName": "PokeSluts AIO Studio",
+    "appId": "com.local.aioconverter",
+    "productName": "PokeSluts AIO Convertr",
     "files": [
       "src/**/*",
       "package.json"
     ],
     "directories": {
-      "buildResources": "build",
-      "output": "release"
+      "buildResources": "build"
     },
     "win": {
-      "icon": "build/icon.png",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "mac": {
-      "category": "public.app-category.utilities",
-      "icon": "build/icon.png",
-      "identity": null,
-      "target": [
-        {
-          "target": "dmg",
-          "arch": ["arm64", "x64"]
-        }
-      ]
+      "target": "dmg"
+    },
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "createDesktopShortcut": true
     }
   },
   "devDependencies": {
