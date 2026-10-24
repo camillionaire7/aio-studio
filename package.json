@@ -35,13 +35,17 @@
         }
       ],
       "icon": "build/icon.png",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "nsis": {
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "createDesktopShortcut": true
-    }
+    },
+    "afterPack": "build/adHocSign.js"
   },
   "devDependencies": {
     "electron": "^33.0.0",
