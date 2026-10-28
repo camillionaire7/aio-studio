@@ -280,12 +280,37 @@
     const shown = all.filter((j) => !q || `${j.line1} ${j.city} ${j.state} ${j.zip} ${j.batch} ${j.site}`.toLowerCase().includes(q));
     $('jigCount').textContent = all.length ? (q ? `(${shown.length} of ${all.length})` : `(${all.length})`) : '';
     $('jigReaddAll').disabled = !all.length;
-    // Numerical (default): one list ordered by house number, then street, then unit. Date added: grouped by day.
-    const groups = $('jigSort').value === 'date'
-      ? groupByDay(shown, (j) => j.date)
-      : [{ label: null, items: shown.slice().sort((a, b) => nameCollator.compare(a.line1 || '', b.line1 || '') || nameCollator.compare(String(a.zip || ''), String(b.zip || ''))) }];
+    // Numerical (default): one list ordered by house number, then street, then unit. By retailer: a section per retailer,
+    // each in the same numerical order. Date added: grouped by day.
+    const byNum = (a, b) => nameCollator.compare(a.line1 || '', b.line1 || '') || nameCollator.compare(String(a.zip || ''), String(b.zip || ''));
+    const sortMode = $('jigSort').value;
+    let groups;
+    if (sortMode === 'date') groups = groupByDay(shown, (j) => j.date);
+    else if (sortMode === 'site') {
+      const sites = [...new Set(shown.map((j) => j.site || ''))];
+      const rank = (s) => (s === '' ? 999 : (RETAILER_ORDER.indexOf(s) + 1 || 99));
+      sites.sort((x, y) => rank(x) - rank(y) || x.localeCompare(y));
+      groups = sites.map((s) => {
+        const items = shown.filter((j) => (j.site || '') === s).sort(byNum);
+        return { label: `${s ? (RETAILER_LABEL[s] || s) : 'Any retailer'} (${items.length})`, items, head: 'rethead' };
+      });
+    } else if (sortMode === 'dup') {
+      // Addresses used on more than one retailer: one section per address, a row for each retailer it was used on.
+      const rank = (s) => (s === '' ? 999 : (RETAILER_ORDER.indexOf(s) + 1 || 99));
+      const byKey = new Map();
+      shown.forEach((j) => { if (!byKey.has(j.key)) byKey.set(j.key, []); byKey.get(j.key).push(j); });
+      groups = [...byKey.values()]
+        .filter((items) => new Set(items.map((j) => j.site || '')).size > 1)
+        .sort((a, b) => byNum(a[0], b[0]))
+        .map((items) => {
+          const sorted = items.slice().sort((a, b) => rank(a.site || '') - rank(b.site || ''));
+          const names = [...new Set(sorted.map((j) => (j.site ? (RETAILER_LABEL[j.site] || j.site) : 'Any retailer')))];
+          return { label: `${items[0].line1} · used on ${names.join(' + ')}`, items: sorted, head: 'rethead', priv: true };
+        });
+      $('jigCount').textContent = `(${groups.length} duplicate${groups.length === 1 ? '' : 's'})`;
+    } else groups = [{ label: null, items: shown.slice().sort(byNum) }];
     groups.forEach((day) => {
-      if (day.label) l.append(el('li', { class: 'datehead', text: day.label }));
+      if (day.label) l.append(el('li', { class: day.head || 'datehead' }, day.priv ? sx('line1', day.label) : day.label));
       day.items.forEach((j) => l.append(el('li', null,
         el('div', { class: 'main' },
           el('b', null, Privacy.group(sx('line1', j.line1), `, ${j.city}, ${j.state} `, sx('zip', j.zip))),
@@ -297,6 +322,7 @@
     });
     if (!all.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No used jigs yet. Addresses are added here when you export a batch from the Builder.' })));
     else if (!shown.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'Nothing matches that search.' })));
+    else if ($('jigSort').value === 'dup' && !l.children.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No address has been used on more than one retailer.' })));
   }
   $('jigSearch').addEventListener('input', renderJigs);
   $('jigSort').addEventListener('change', renderJigs);
