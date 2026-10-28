@@ -278,37 +278,37 @@
     const q = $('jigSearch').value.trim().toLowerCase();
     const all = snap.usedJigs || [];
     const shown = all.filter((j) => !q || `${j.line1} ${j.city} ${j.state} ${j.zip} ${j.batch} ${j.site}`.toLowerCase().includes(q));
-    $('jigCount').textContent = all.length ? (q ? `(${shown.length} of ${all.length})` : `(${all.length})`) : '';
     $('jigReaddAll').disabled = !all.length;
-    // Numerical (default): one list ordered by house number, then street, then unit. By retailer: a section per retailer,
-    // each in the same numerical order. Date added: grouped by day.
-    const byNum = (a, b) => nameCollator.compare(a.line1 || '', b.line1 || '') || nameCollator.compare(String(a.zip || ''), String(b.zip || ''));
+    const site = $('jigSite').value; // '' = every retailer, '__any' = jigs with no retailer set
     const sortMode = $('jigSort').value;
+    const dupOnly = $('jigDup').checked;
+    const inSite = (j) => !site || (site === '__any' ? !j.site : j.site === site);
+    const byNum = (a, b) => nameCollator.compare(a.line1 || '', b.line1 || '') || nameCollator.compare(String(a.zip || ''), String(b.zip || ''));
     let groups;
-    if (sortMode === 'date') groups = groupByDay(shown, (j) => j.date);
-    else if (sortMode === 'site') {
-      const sites = [...new Set(shown.map((j) => j.site || ''))];
-      const rank = (s) => (s === '' ? 999 : (RETAILER_ORDER.indexOf(s) + 1 || 99));
-      sites.sort((x, y) => rank(x) - rank(y) || x.localeCompare(y));
-      groups = sites.map((s) => {
-        const items = shown.filter((j) => (j.site || '') === s).sort(byNum);
-        return { label: `${s ? (RETAILER_LABEL[s] || s) : 'Any retailer'} (${items.length})`, items, head: 'rethead' };
+    let list;
+    if (dupOnly) {
+      // Duplicates inside one retailer: the same street line (ignoring case, periods and commas) and ZIP more than once on that
+      // retailer. A jig with no retailer set counts for every retailer, so it duplicates any entry for the same address.
+      const norm = (j) => `${String(j.line1 || '').toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()}|${String(j.zip || '').slice(0, 5)}`;
+      const byAddr = new Map();
+      shown.forEach((j) => { const k = norm(j); if (!byAddr.has(k)) byAddr.set(k, []); byAddr.get(k).push(j); });
+      groups = [];
+      [...byAddr.values()].sort((x, y) => byNum(x[0], y[0])).forEach((items) => {
+        const rel = !site ? items : items.filter((j) => (site === '__any' ? !j.site : (j.site === site || !j.site)));
+        const bySite = new Map();
+        rel.forEach((j) => bySite.set(j.site || '', (bySite.get(j.site || '') || 0) + 1));
+        const dup = !site ? ([...bySite.values()].some((n) => n > 1) || (bySite.has('') && rel.length > 1)) : rel.length > 1;
+        // with every retailer showing, list only the entries that repeat (a retailer's single entry is not part of the duplicate)
+        const rows = !site && !bySite.has('') ? rel.filter((j) => bySite.get(j.site || '') > 1) : rel;
+        if (dup) groups.push({ label: `${items[0].line1} · ${rows.length} entries`, items: rows, head: 'rethead', priv: true });
       });
-    } else if (sortMode === 'dup') {
-      // Addresses used on more than one retailer: one section per address, a row for each retailer it was used on.
-      const rank = (s) => (s === '' ? 999 : (RETAILER_ORDER.indexOf(s) + 1 || 99));
-      const byKey = new Map();
-      shown.forEach((j) => { if (!byKey.has(j.key)) byKey.set(j.key, []); byKey.get(j.key).push(j); });
-      groups = [...byKey.values()]
-        .filter((items) => new Set(items.map((j) => j.site || '')).size > 1)
-        .sort((a, b) => byNum(a[0], b[0]))
-        .map((items) => {
-          const sorted = items.slice().sort((a, b) => rank(a.site || '') - rank(b.site || ''));
-          const names = [...new Set(sorted.map((j) => (j.site ? (RETAILER_LABEL[j.site] || j.site) : 'Any retailer')))];
-          return { label: `${items[0].line1} · used on ${names.join(' + ')}`, items: sorted, head: 'rethead', priv: true };
-        });
+      list = groups.flatMap((g) => g.items);
       $('jigCount').textContent = `(${groups.length} duplicate${groups.length === 1 ? '' : 's'})`;
-    } else groups = [{ label: null, items: shown.slice().sort(byNum) }];
+    } else {
+      list = shown.filter(inSite);
+      groups = sortMode === 'date' ? groupByDay(list, (j) => j.date) : [{ label: null, items: list.slice().sort(byNum) }];
+      $('jigCount').textContent = all.length ? (q || site ? `(${list.length} of ${all.length})` : `(${all.length})`) : '';
+    }
     groups.forEach((day) => {
       if (day.label) l.append(el('li', { class: day.head || 'datehead' }, day.priv ? sx('line1', day.label) : day.label));
       day.items.forEach((j) => l.append(el('li', null,
@@ -322,10 +322,13 @@
     });
     if (!all.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No used jigs yet. Addresses are added here when you export a batch from the Builder.' })));
     else if (!shown.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'Nothing matches that search.' })));
-    else if ($('jigSort').value === 'dup' && !l.children.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No address has been used on more than one retailer.' })));
+    else if (dupOnly && !groups.length) l.append(el('li', null, el('div', { class: 'main meta', text: `No duplicate addresses${site && site !== '__any' ? ' on ' + (RETAILER_LABEL[site] || site) : ' on any retailer'}. Every used address appears once per retailer.` })));
+    else if (!list.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No used jigs for that retailer yet.' })));
   }
   $('jigSearch').addEventListener('input', renderJigs);
   $('jigSort').addEventListener('change', renderJigs);
+  $('jigSite').addEventListener('change', renderJigs);
+  $('jigDup').addEventListener('change', renderJigs);
   $('jigReaddAll').addEventListener('click', async () => {
     const n = (snap.usedJigs || []).length;
     if (!n) return;
