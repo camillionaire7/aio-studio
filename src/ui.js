@@ -292,18 +292,25 @@
       const norm = (j) => `${String(j.line1 || '').toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()}|${String(j.zip || '').slice(0, 5)}`;
       const byAddr = new Map();
       shown.forEach((j) => { const k = norm(j); if (!byAddr.has(k)) byAddr.set(k, []); byAddr.get(k).push(j); });
+      const rank = (s) => (s === '' ? 999 : (RETAILER_ORDER.indexOf(s) + 1 || 99));
+      const addrGroups = [...byAddr.values()].sort((x, y) => byNum(x[0], y[0]));
+      // the retailers to report: the one picked, or every retailer that has a duplicate (each with its own section)
+      const sites = site ? [site === '__any' ? '' : site] : [...new Set(shown.map((j) => j.site || ''))].sort((x, y) => rank(x) - rank(y) || x.localeCompare(y));
       groups = [];
-      [...byAddr.values()].sort((x, y) => byNum(x[0], y[0])).forEach((items) => {
-        const rel = !site ? items : items.filter((j) => (site === '__any' ? !j.site : (j.site === site || !j.site)));
-        const bySite = new Map();
-        rel.forEach((j) => bySite.set(j.site || '', (bySite.get(j.site || '') || 0) + 1));
-        const dup = !site ? ([...bySite.values()].some((n) => n > 1) || (bySite.has('') && rel.length > 1)) : rel.length > 1;
-        // with every retailer showing, list only the entries that repeat (a retailer's single entry is not part of the duplicate)
-        const rows = !site && !bySite.has('') ? rel.filter((j) => bySite.get(j.site || '') > 1) : rel;
-        if (dup) groups.push({ label: `${items[0].line1} · ${rows.length} entries`, items: rows, head: 'rethead', priv: true });
+      let total = 0;
+      sites.forEach((s) => {
+        const found = [];
+        addrGroups.forEach((items) => {
+          const rel = items.filter((j) => (j.site || '') === s || (s !== '' && !j.site)); // this retailer's entries, plus no-retailer jigs that block it
+          if (rel.length > 1) found.push({ label: `${items[0].line1} · ${rel.length} entries`, items: rel, head: 'datehead', priv: true });
+        });
+        if (!found.length) return;
+        total += found.length;
+        if (!site) groups.push({ label: `${s ? (RETAILER_LABEL[s] || s) : 'Any retailer'} · ${found.length} duplicate${found.length === 1 ? '' : 's'}`, items: [], head: 'rethead' });
+        groups.push(...found);
       });
       list = groups.flatMap((g) => g.items);
-      $('jigCount').textContent = `(${groups.length} duplicate${groups.length === 1 ? '' : 's'})`;
+      $('jigCount').textContent = `(${total} duplicate${total === 1 ? '' : 's'})`;
     } else {
       list = shown.filter(inSite);
       groups = sortMode === 'date' ? groupByDay(list, (j) => j.date) : [{ label: null, items: list.slice().sort(byNum) }];

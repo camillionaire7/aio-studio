@@ -12,7 +12,7 @@
   },
   "build": {
     "appId": "com.local.aioconverter",
-    "productName": "PokeSluts AIO Convertr",
+    "productName": "PokeSluts AIO Studio",
     "files": [
       "src/**/*",
       "package.json"
