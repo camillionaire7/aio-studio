@@ -125,6 +125,11 @@
     #confirmDlg { width: min(440px, 92vw); }
     #acctExpDlg { width: min(440px, 92vw); }
     button.smallbtn { padding: 3px 10px; font-size: 12px; border-radius: 8px; }
+    #siteDlg { width: min(460px, 92vw); }
+    #bulkDlg { width: min(560px, 94vw); }
+    .selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 4px; color: var(--text2); font-size: 13px; }
+    .selbar .chk { margin: 0; }
+    .pcard .psel { margin: 0 2px 0 0; width: 16px; height: 16px; accent-color: var(--accent, #f92fa7); }
     #renDlg { width: min(420px, 92vw); }
     #profDlg { width: min(560px, 94vw); }
     .pe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
@@ -592,7 +597,7 @@
 
       <div class="split" id="vpLogins" hidden>
         <div class="list">
-          <div class="listhead"><h2>Accounts <span class="count" id="acctCount"></span></h2><span class="grow"></span><select id="acctFilter" class="sortsel" aria-label="Show accounts"><option value="free">Available</option><option value="used">In use</option><option value="all">All</option></select><button type="button" class="sec smallbtn" id="acctExport">Export…</button><button type="button" class="sec smallbtn" id="acctMore" aria-label="More options" title="Sort and delete options">⋯</button></div>
+          <div class="listhead"><h2>Accounts <span class="count" id="acctCount"></span></h2><span class="grow"></span><input type="checkbox" id="acctSelAll" title="Select all shown" aria-label="Select all shown accounts" style="margin: 0 2px 0 0" /><select id="acctFilter" class="sortsel" aria-label="Show accounts"><option value="free">Available</option><option value="used">In use</option><option value="all">All</option></select><button type="button" class="sec smallbtn" id="acctExport">Export…</button><button type="button" class="sec smallbtn" id="acctMore" aria-label="More options" title="Sort and delete options">⋯</button></div>
           <ul class="items" id="acctList"></ul>
         </div>
         <div class="form">
@@ -860,6 +865,7 @@
     <label class="f">Last name<input id="peLast" autocomplete="off" /></label>
     <label class="f">Email<input id="peEmail" autocomplete="off" /></label>
     <label class="f">Phone<input id="pePhone" autocomplete="off" /></label>
+    <label class="f pe-wide">Use an address from the Vault<select id="peVault"></select></label>
     <label class="f pe-wide">Address line 1<input id="peLine1" autocomplete="off" /></label>
     <label class="f pe-wide">Address line 2<input id="peLine2" autocomplete="off" /></label>
     <label class="f">City<input id="peCity" autocomplete="off" /></label>
@@ -881,6 +887,35 @@
   <p class="hint" id="acctExpNote" style="margin-top: 4px"></p>
   <label class="f" style="margin-top: 12px">Retailer<select id="acctExpRetailer"><option value="">All retailers</option><option value="target">Target</option><option value="walmart">Walmart</option><option value="other">Other</option></select></label>
   <div class="bar" style="margin: 14px 0 0; justify-content: flex-end"><button type="button" class="sec" id="acctExpClose">Cancel</button><button type="button" id="acctExpHayha">Export Hayha</button><button type="button" id="acctExpPolar">Export Polar</button></div>
+</dialog>
+<dialog id="siteDlg">
+  <h2>Which retailer is this export for?</h2>
+  <p class="hint" style="margin-top: 4px">The addresses in this file are added to Vault &gt; Used Jigs for that retailer, and the Builder and the Editor will not generate them again there.</p>
+  <div class="bar" style="margin: 14px 0 0; flex-wrap: wrap">
+    <button type="button" data-site="target">Target</button>
+    <button type="button" data-site="walmart">Walmart</button>
+    <button type="button" data-site="pokemoncenter">Pokémon Center</button>
+    <button type="button" class="sec" data-site="other">Other</button>
+  </div>
+  <div class="bar" style="margin: 10px 0 0; justify-content: space-between">
+    <button type="button" class="sec" id="siteNone" title="The addresses will be skipped on every retailer">Don't set a retailer</button>
+    <button type="button" class="sec" id="siteCancel">Cancel export</button>
+  </div>
+</dialog>
+<dialog id="bulkDlg">
+  <h2 id="bulkTitle">Change address</h2>
+  <p class="hint" style="margin-top: 4px">Every selected profile gets this address as its starting point. Then use Jig address on each one to make its own variation.</p>
+  <div class="pe-grid">
+    <label class="f pe-wide">Use an address from the Vault<select id="bkVault"></select></label>
+    <label class="f pe-wide">Address line 1<input id="bkLine1" autocomplete="off" /></label>
+    <label class="f pe-wide">Address line 2<input id="bkLine2" autocomplete="off" /></label>
+    <label class="f">City<input id="bkCity" autocomplete="off" /></label>
+    <label class="f">State<select id="bkState"></select></label>
+    <label class="f">Zip<input id="bkZip" autocomplete="off" /></label>
+    <label class="f">Country<input id="bkCountry" autocomplete="off" /></label>
+  </div>
+  <div class="msg" id="bkMsg"></div>
+  <div class="bar" style="margin: 10px 0 0; justify-content: flex-end"><button type="button" class="sec" id="bkCancel">Cancel</button><button type="button" id="bkApply">Apply to selected</button></div>
 </dialog>
 <dialog id="renDlg">
   <h2>Rename file</h2>

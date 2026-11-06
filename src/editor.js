@@ -193,6 +193,25 @@ function updateProfile(p, f) {
   return { ok: true };
 }
 
+// Set the address of a profile from a form (used to give several profiles the same base address). The new address becomes
+// the profile's starting point for Jig / Reset. -> { ok } or { ok: false, error } (nothing changed when it fails).
+function checkAddress(a) {
+  a = a || {};
+  const line1 = trim(a.line1);
+  const city = trim(a.city);
+  const zip = trim(a.zip);
+  const state = lookupState(a.state);
+  if (!line1) return { ok: false, error: 'Enter the street address.' };
+  if (!city) return { ok: false, error: 'Enter the city.' };
+  if (!state) return { ok: false, error: 'Pick a state.' };
+  if (!/^\d{5}(-\d{4})?$/.test(zip)) return { ok: false, error: 'Enter a 5-digit ZIP code.' };
+  return { ok: true, address: { line1, line2: trim(a.line2), city, state, zip, country: trim(a.country) || 'United States' } };
+}
+function applyAddress(p, address) {
+  p.address = { ...address, state: { ...address.state } };
+  p.orig = { line1: address.line1, line2: address.line2 };
+}
+
 // Re-jig every profile whose address duplicates an earlier one. The first profile in each duplicate set is kept.
 function fixDuplicateAddresses(profiles, rng = Math.random, isUsed = null) {
   const taken = new Set(profiles.map((p) => addrKey(p.address)));
@@ -235,4 +254,4 @@ function exportProfiles(rec, format) {
   return format === 'polar' ? buildPolarFile(rec.profiles, rec.name) : buildHayhaFile(rec.profiles);
 }
 
-module.exports = { makeProfile, parseProfilesFile, analyze, rejigProfile, updateProfile, fixDuplicateAddresses, publicProfile, exportProfiles, addrKey, isChanged };
+module.exports = { makeProfile, parseProfilesFile, analyze, rejigProfile, updateProfile, checkAddress, applyAddress, fixDuplicateAddresses, publicProfile, exportProfiles, addrKey, isChanged };

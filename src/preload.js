@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('api', {
   editorImport: call('editor:import'),
   editorJig: call('editor:jig'),
   editorUpdateProfile: call('editor:updateProfile'),
+  editorSetAddress: call('editor:setAddress'),
   editorReset: call('editor:reset'),
   editorFix: call('editor:fix'),
   editorDeleteProfile: call('editor:deleteProfile'),

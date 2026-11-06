@@ -93,6 +93,7 @@
   let openGroup = null;
   const picked = new Set();
   const pickedAcct = new Set();
+  const acctSel = new Set(); // accounts ticked in Vault > Accounts for export
   let renamingGroup = null;
   let acctSort = 'date';
   try { if (localStorage.getItem('aioStudio.acctSort') === 'alpha') acctSort = 'alpha'; } catch (e) { /* default */ }
@@ -113,6 +114,7 @@
     (s.accounts || []).forEach((a) => { if (a.used) pickedAcct.delete(a.id); }); // in-use accounts are not offered to the Builder
     const aids = new Set((s.accounts || []).map((a) => a.id));
     for (const id of [...pickedAcct]) if (!aids.has(id)) pickedAcct.delete(id);
+    for (const id of [...acctSel]) if (!aids.has(id)) acctSel.delete(id);
     renderVault();
     renderDomains();
     renderAccounts();
@@ -231,6 +233,21 @@
     if (!snap.domains.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No domains yet.' })));
   }
 
+  // The export button shows how many are ticked; the header box ticks / clears everything shown.
+  function syncAcctSel() {
+    const shown = snap.accounts.filter(useFilter($('acctFilter').value));
+    const n = shown.filter((a) => acctSel.has(a.id)).length;
+    $('acctExport').textContent = acctSel.size ? `Export (${acctSel.size})…` : 'Export…';
+    const all = $('acctSelAll');
+    all.checked = shown.length > 0 && n === shown.length;
+    all.indeterminate = n > 0 && n < shown.length;
+    all.disabled = !shown.length;
+  }
+  $('acctSelAll').addEventListener('change', (e) => {
+    snap.accounts.filter(useFilter($('acctFilter').value)).forEach((a) => { if (e.target.checked) acctSel.add(a.id); else acctSel.delete(a.id); });
+    renderAccounts();
+  });
+
   // Accounts grouped under a date header per day they were added.
   function renderAccounts() {
     const l = $('acctList');
@@ -246,6 +263,11 @@
       acctGroups(mine).forEach((day) => {
         if (day.label) l.append(el('li', { class: 'datehead', text: day.label }));
         day.items.forEach((a) => l.append(el('li', null,
+          el('input', {
+            type: 'checkbox', class: 'psel', title: 'Select for export', 'aria-label': 'Select account', style: 'margin: 0 10px 0 0; flex: none',
+            ...(acctSel.has(a.id) ? { checked: 'checked' } : {}),
+            onchange: (e) => { if (e.target.checked) acctSel.add(a.id); else acctSel.delete(a.id); syncAcctSel(); },
+          }),
           el('div', { class: 'main' }, el('b', null, sx('email', a.email))),
           el('div', { class: 'acts' },
             (() => {
@@ -265,11 +287,15 @@
             })))));
       });
     });
+    syncAcctSel();
     if (!snap.accounts.length) l.append(el('li', null, el('div', { class: 'main meta', text: 'No accounts yet.' })));
     else if (!l.children.length) l.append(el('li', null, el('div', { class: 'main meta', text: $('acctFilter').value === 'used' ? 'No accounts in use.' : 'No available accounts. Change the filter to see the rest.' })));
   }
 
   // Used jigs: address variations that were exported before (the Builder skips them). Re-add = let the Builder use one again.
+  // "Nov 5, 2026 · " (nothing when the date is missing or unreadable)
+  // "Nov 5, 2026, 7:19 PM · " when the jig was used (empty if the entry has no usable date)
+  const jigDate = (iso) => { const d = new Date(iso); return !iso || isNaN(d) ? '' : `${d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}, ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · `; };
   const JIG_FORMAT = { hayha: 'Hayha', polar: 'Polar', csv: 'CSV' };
   const JIG_SOURCE = { import: 'Imported', editor: 'Editor export' };
   function renderJigs() {
@@ -321,7 +347,7 @@
       day.items.forEach((j) => l.append(el('li', null,
         el('div', { class: 'main' },
           el('b', null, Privacy.group(sx('line1', j.line1), `, ${j.city}, ${j.state} `, sx('zip', j.zip))),
-          el('div', { class: 'meta', text: `${j.batch || 'Batch'}${j.source ? ' · ' + (JIG_SOURCE[j.source] || j.source) : ''}${' · ' + (j.site ? (RETAILER_LABEL[j.site] || j.site) : 'Any retailer')}${j.format ? ' · ' + (JIG_FORMAT[j.format] || j.format) : ''}` })),
+          el('div', { class: 'meta', text: `${jigDate(j.date)}${j.batch || 'Batch'}${j.source ? ' · ' + (JIG_SOURCE[j.source] || j.source) : ''}${' · ' + (j.site ? (RETAILER_LABEL[j.site] || j.site) : 'Any retailer')}${j.format ? ' · ' + (JIG_FORMAT[j.format] || j.format) : ''}` })),
         el('div', { class: 'acts' }, el('button', {
           class: 'sec', type: 'button', text: 'Re-add', title: 'Let the Builder generate this address again',
           onclick: async () => handleVault(await api.vaultRemoveJig(j.id), 'vMsg', 'Re-added. The Builder can use that address again.'),
@@ -423,7 +449,7 @@
 
   // Export the accounts that match the Available / In use / All filter (and the retailer picked next to the buttons) as a Hayha or Polar accounts file
   async function exportAccounts(format) {
-    const r = await api.vaultExportAccounts(format, $('acctExpRetailer').value, $('acctFilter').value);
+    const r = await api.vaultExportAccounts(format, $('acctExpRetailer').value, $('acctFilter').value, [...acctSel]);
     if (r.ok) setMsg('vMsg', `Exported ${r.count} account${r.count === 1 ? '' : 's'} to ${r.filePath}.`, 'ok');
     else if (!r.canceled) setMsg('vMsg', r.error, 'err');
   }
@@ -432,6 +458,8 @@
   $('acctExpClose').addEventListener('click', () => $('acctExpDlg').close());
   $('acctExport').addEventListener('click', () => {
     const f = $('acctFilter').value;
+    $('acctExpRetailer').closest('label').hidden = acctSel.size > 0;
+    if (acctSel.size) { $('acctExpNote').textContent = `Exports the ${acctSel.size} account${acctSel.size === 1 ? '' : 's'} you ticked, whatever the filter or retailer. Untick them all to export by filter instead.`; $('acctExpDlg').showModal(); return; }
     $('acctExpNote').textContent = `Exports the ${f === 'free' ? 'available' : f === 'used' ? 'in-use' : ''} accounts${f === 'all' ? ' (every account)' : ''} for the retailer you pick. Change the filter above to export a different set.`.replace('  ', ' ');
     $('acctExpDlg').showModal();
   });
@@ -447,6 +475,7 @@
     showMenu(r.right - 190, r.bottom + 4, [
       { label: `${acctSort === 'date' ? '✓ ' : '    '}Sort by date added`, run: setSort('date') },
       { label: `${acctSort === 'alpha' ? '✓ ' : '    '}Sort A–Z`, run: setSort('alpha') },
+      acctSel.size && { label: `Clear selection (${acctSel.size})`, run: () => { acctSel.clear(); renderAccounts(); } },
       snap.accounts.length && { label: 'Delete all accounts', danger: true, run: () => deleteAll('accounts', 'accounts', snap.accounts.length) },
     ]);
   });
@@ -933,6 +962,10 @@
   window.addEventListener('blur', closeMenu);
   document.addEventListener('scroll', closeMenu, true);
 
+  // Profiles ticked in the Editor, per file (for "Change address…").
+  const picks = new Map();
+  const selOf = (recId) => { if (!picks.has(recId)) picks.set(recId, new Set()); return picks.get(recId); };
+
   function profileCard(rec, p) {
     const f = p.flags;
     const sev = f.address ? 'sev-addr' : (f.email || f.card || f.name) ? 'sev-dup' : 'sev-ok';
@@ -957,6 +990,10 @@
       },
     },
       el('div', { class: 'ptop' },
+        el('input', {
+          type: 'checkbox', class: 'psel', title: 'Select this profile', 'aria-label': 'Select profile', ...(selOf(rec.id).has(p.id) ? { checked: 'checked' } : {}),
+          onchange: (e) => { const s = selOf(rec.id); if (e.target.checked) s.add(p.id); else s.delete(p.id); renderEditor(); },
+        }),
         el('span', { class: 'gicons' }, icons),
         el('b', null, p.name || sx('name', full)),
         el('span', { class: 'pacts' },
@@ -1026,13 +1063,18 @@
   // ---- Edit one imported profile (every field). Blank card number / CVV keeps the saved one; they never reach this window.
   let peTarget = null;
   let peStatesLoaded = false;
-  async function openProfileEditor(rec, p) {
-    if (!peStatesLoaded) {
-      const sel = $('peState');
+  async function loadStates() {
+    if (peStatesLoaded) return;
+    peStatesLoaded = true;
+    const list = await api.states();
+    ['peState', 'bkState'].forEach((id) => {
+      const sel = $(id);
       sel.append(el('option', { value: '', text: '-' }));
-      (await api.states()).forEach((st) => sel.append(el('option', { value: st.shortCode, text: `${st.shortCode} - ${st.name}` })));
-      peStatesLoaded = true;
-    }
+      list.forEach((st) => sel.append(el('option', { value: st.shortCode, text: `${st.shortCode} - ${st.name}` })));
+    });
+  }
+  async function openProfileEditor(rec, p) {
+    await loadStates();
     peTarget = { recId: rec.id, id: p.id };
     const set = (id, v) => { $(id).value = v || ''; };
     set('peName', p.name); set('peFirst', p.first); set('peLast', p.last); set('peEmail', p.email); set('pePhone', p.phone);
@@ -1041,6 +1083,12 @@
     set('peZip', p.address.zip); set('peCountry', p.address.country);
     set('peHolder', p.card.holder); set('peNumber', ''); set('peCvv', '');
     set('peMonth', p.card.expMonth); set('peYear', p.card.expYear);
+    // Vault addresses: picking one fills the address fields below (still editable; nothing is saved until Save changes).
+    const vs = $('peVault');
+    vs.replaceChildren(el('option', { value: '', text: (snap.addresses || []).length ? 'Choose an address to fill in…' : 'No addresses in the Vault yet' }));
+    (snap.addresses || []).forEach((a) => vs.append(el('option', { value: a.id, text: addressString(a) })));
+    vs.value = '';
+    vs.disabled = !(snap.addresses || []).length;
     $('peNumber').placeholder = `${p.card.brand} •••• ${p.card.last4} (leave blank to keep)`;
     $('peCvv').placeholder = 'Leave blank to keep';
     $('peHint').textContent = 'Changing the street address makes it the new starting point for Jig address and Reset.';
@@ -1048,6 +1096,17 @@
     $('peMsg').textContent = '';
     $('profDlg').showModal();
   }
+  $('peVault').addEventListener('change', () => {
+    const a = (snap.addresses || []).find((x) => x.id === $('peVault').value);
+    if (!a) return;
+    $('peLine1').value = a.line1 || '';
+    $('peLine2').value = a.line2 || '';
+    $('peCity').value = a.city || '';
+    $('peState').value = a.state && a.state.shortCode || '';
+    $('peZip').value = a.zip || '';
+    $('peCountry').value = a.country || 'United States';
+    $('peHint').textContent = 'Address filled in from the Vault. Save changes to apply it, then use Jig address if you want a variation.';
+  });
   $('peCancel').addEventListener('click', () => $('profDlg').close());
   $('peSave').addEventListener('click', async () => {
     if (!peTarget) return;
@@ -1173,6 +1232,22 @@
           info.append(el('div', { class: 'hint', text: `Showing ${shown.length} of ${rec.count} profiles.` }));
           body.append(info);
         }
+        const sel = selOf(rec.id);
+        [...sel].forEach((id) => { if (!rec.profiles.some((x) => x.id === id)) sel.delete(id); }); // profiles that were deleted
+        const nShown = shown.filter((p) => sel.has(p.id)).length;
+        body.append(el('div', { class: 'selbar' },
+          el('label', { class: 'chk' },
+            el('input', {
+              type: 'checkbox', ...(shown.length && nShown === shown.length ? { checked: 'checked' } : {}),
+              onchange: (e) => { shown.forEach((p) => { if (e.target.checked) sel.add(p.id); else sel.delete(p.id); }); renderEditor(); },
+            }), ` Select all${importFilter.size ? ' shown' : ''}`),
+          el('span', { text: sel.size ? `${sel.size} selected` : 'Tick profiles to change their address together' }),
+          el('button', {
+            type: 'button', text: 'Change address…', class: 'sec', ...(sel.size ? {} : { disabled: 'disabled' }),
+            title: 'Give the selected profiles the same address (pick one from the Vault or type it), then jig each one',
+            onclick: () => openBulkAddress(rec),
+          }),
+          sel.size ? el('button', { type: 'button', class: 'sec', text: 'Clear selection', onclick: () => { sel.clear(); renderEditor(); } }) : null));
         shown.forEach((p) => body.append(profileCard(rec, p)));
         list.append(body);
       });
@@ -1247,10 +1322,67 @@
     setMsg('edMsg', `Merged ${r.added} profile${r.added === 1 ? '' : 's'}${r.newFile ? ' into a new file' : ''}${r.skipped ? `; skipped ${r.skipped} whose card is no longer in the vault` : ''}.`, r.skipped ? 'err' : 'ok');
   });
 
+  // ---- change the address of the ticked profiles
+  let bulkRec = null;
+  async function openBulkAddress(rec) {
+    await loadStates();
+    bulkRec = rec;
+    const n = selOf(rec.id).size;
+    $('bulkTitle').textContent = `Change address for ${n} profile${n === 1 ? '' : 's'}`;
+    const vs = $('bkVault');
+    vs.replaceChildren(el('option', { value: '', text: (snap.addresses || []).length ? 'Choose an address to fill in…' : 'No addresses in the Vault yet' }));
+    (snap.addresses || []).forEach((a) => vs.append(el('option', { value: a.id, text: addressString(a) })));
+    vs.value = '';
+    vs.disabled = !(snap.addresses || []).length;
+    ['bkLine1', 'bkLine2', 'bkCity', 'bkZip'].forEach((id) => { $(id).value = ''; });
+    $('bkState').value = '';
+    $('bkCountry').value = 'United States';
+    setMsg('bkMsg', '', '');
+    $('bulkDlg').showModal();
+    (snap.addresses || []).length ? vs.focus() : $('bkLine1').focus();
+  }
+  $('bkVault').addEventListener('change', () => {
+    const a = (snap.addresses || []).find((x) => x.id === $('bkVault').value);
+    if (!a) return;
+    $('bkLine1').value = a.line1 || ''; $('bkLine2').value = a.line2 || ''; $('bkCity').value = a.city || '';
+    $('bkState').value = a.state && a.state.shortCode || ''; $('bkZip').value = a.zip || ''; $('bkCountry').value = a.country || 'United States';
+  });
+  $('bkCancel').addEventListener('click', () => $('bulkDlg').close());
+  $('bkApply').addEventListener('click', async () => {
+    if (!bulkRec) return;
+    const r = await api.editorSetAddress(bulkRec.id, [...selOf(bulkRec.id)], {
+      line1: $('bkLine1').value, line2: $('bkLine2').value, city: $('bkCity').value, state: $('bkState').value, zip: $('bkZip').value, country: $('bkCountry').value,
+    });
+    if (!r.ok) { setMsg('bkMsg', r.error, 'err'); return; }
+    $('bulkDlg').close();
+    handleEditor(r, `${r.count} profile${r.count === 1 ? '' : 's'} now start from that address. Use Jig address on each to make its own variation.`);
+  });
+
+  // Ask which retailer an export is for. Resolves 'target' / 'walmart' / ..., '' (don't set) or null (cancel).
+  function askSite() {
+    const dlg = $('siteDlg');
+    return new Promise((resolve) => {
+      let answer = null;
+      const done = (v) => () => { answer = v; dlg.close(); };
+      const handlers = [...dlg.querySelectorAll('[data-site]')].map((b) => [b, done(b.dataset.site)]);
+      handlers.push([$('siteNone'), done('')], [$('siteCancel'), done(null)]);
+      handlers.forEach(([b, f]) => b.addEventListener('click', f));
+      dlg.addEventListener('close', () => { handlers.forEach(([b, f]) => b.removeEventListener('click', f)); resolve(answer); }, { once: true });
+      dlg.showModal();
+    });
+  }
+
   async function exportImport(id, format) {
+    const rec = snap.imports.find((x) => x.id === id);
+    if (rec && !rec.site) { // no retailer yet: ask, so the exported addresses are blocked on the right one
+      const site = await askSite();
+      if (site === null) return;
+      if (site) { const s = await api.editorSetSite(id, site); if (s.snapshot) applySnapshot(s.snapshot); }
+    }
     const r = await api.editorExport(id, format);
     if (r.snapshot) applySnapshot(r.snapshot);
-    if (r.ok) setMsg('edMsg', `Saved to ${r.filePath}.${r.jigsAdded ? ` ${r.jigsAdded} new address jig${r.jigsAdded === 1 ? '' : 's'} added to Vault > Used Jigs.` : ''}`, 'ok');
+    const where = r.site ? (SITE_LABEL[r.site] || r.site) : '';
+    if (r.ok) setMsg('edMsg', `Saved to ${r.filePath}.${r.jigsAdded ? ` ${r.jigsAdded} new address jig${r.jigsAdded === 1 ? '' : 's'} added to Vault > Used Jigs${where ? ` for ${where}` : ' (skipped on every retailer)'}; they will not be generated again${where ? ' there' : ''}.` : ` Every address in it was already in Used Jigs${where ? ` for ${where}, so none will be generated again there` : ''}.`}`, 'ok');
     else if (!r.canceled) setMsg('edMsg', r.error, 'err');
   }
 

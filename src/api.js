@@ -45,9 +45,12 @@ function createApi({ vault, showSave, writeFile }) {
     'vault:clearJigs': () => withSnap(vault.clearJigs()),
     'vault:setAccountUsed': (id, used) => withSnap(vault.setAccountUsed(id, used)),
     // Save the vault's accounts (all, or one retailer) as a Hayha or Polar accounts file. Passwords stay in this process.
-    'vault:exportAccounts': async (format, retailer, status) => {
+    'vault:exportAccounts': async (format, retailer, status, ids) => {
       if (!['hayha', 'polar'].includes(format)) return { ok: false, error: 'Unknown export format.' };
-      const accounts = vault.listAccounts(retailer).filter((x) => status === 'used' ? x.used : status === 'free' ? !x.used : true);
+      // ticked accounts win over the retailer / status filters
+      const chosen = Array.isArray(ids) && ids.length ? new Set(ids.map(String)) : null;
+      if (chosen) { retailer = ''; status = 'all'; }
+      const accounts = vault.listAccounts(retailer).filter((x) => (chosen ? chosen.has(x.id) : true) && (status === 'used' ? x.used : status === 'free' ? !x.used : true));
       const what = status === 'used' ? 'in-use ' : status === 'free' ? 'available ' : '';
       if (!accounts.length) return { ok: false, error: retailer ? `There are no ${what}${RETAILER_SITE[retailer] || retailer} accounts to export.` : `There are no ${what}accounts to export.` };
       const label = retailer ? (RETAILER_SITE[retailer] || retailer) : 'All';
@@ -92,6 +95,19 @@ function createApi({ vault, showSave, writeFile }) {
       const r = editor.updateProfile(p, fields);
       if (r.ok) vault.commit();
       return withSnap(r);
+    },
+    // Give several profiles of one file the same address (their new starting point); jig each one afterwards.
+    'editor:setAddress': (importId, profileIds, address) => {
+      const rec = vault.getImport(importId);
+      if (!rec) return { ok: false, error: 'Imported file not found.' };
+      const ids = new Set((Array.isArray(profileIds) ? profileIds : []).map(String));
+      const targets = rec.profiles.filter((x) => ids.has(x.id));
+      if (!targets.length) return { ok: false, error: 'Select at least one profile.' };
+      const c = editor.checkAddress(address);
+      if (!c.ok) return c;
+      targets.forEach((p) => editor.applyAddress(p, c.address));
+      vault.commit();
+      return withSnap({ ok: true, count: targets.length });
     },
     'editor:reset': (importId, profileId) => {
       const rec = vault.getImport(importId);
@@ -162,7 +178,7 @@ function createApi({ vault, showSave, writeFile }) {
       try { writeFile(filePath, editor.exportProfiles(rec, format)); } catch (e) { return { ok: false, error: e.message }; }
       // what the file now contains (including re-jigged addresses) is used too
       const jigsAdded = vault.recordJigs(rec.profiles, { batch: rec.name, site: rec.site, format, source: 'editor' });
-      return { ok: true, filePath, jigsAdded, snapshot: vault.snapshot() };
+      return { ok: true, filePath, jigsAdded, site: rec.site || '', snapshot: vault.snapshot() };
     },
 
     // After a restore or wipe: the batch that was generated points at cards that may no longer exist.
